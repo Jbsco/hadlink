@@ -1,4 +1,4 @@
--- FFI boundary for calling SPARK core from Haskell
+--  FFI boundary for calling SPARK core from Haskell
 pragma SPARK_Mode (Off);
 
 with Interfaces.C; use Interfaces.C;
@@ -6,9 +6,9 @@ with Interfaces.C.Strings; use Interfaces.C.Strings;
 
 package Core_FFI is
 
-   -- Result codes matching Core.Result_Code
+   --  Result codes matching Core.Result_Code
    type FFI_Result_Code is new int;
-   
+
    FFI_Success              : constant FFI_Result_Code := 0;
    FFI_Invalid_Length       : constant FFI_Result_Code := 1;
    FFI_Invalid_Scheme       : constant FFI_Result_Code := 2;
@@ -17,11 +17,11 @@ package Core_FFI is
    FFI_Credentials_Present  : constant FFI_Result_Code := 5;
    FFI_Invalid_Characters   : constant FFI_Result_Code := 6;
 
-   -- Canonicalize URL
-   -- Input: null-terminated C string
-   -- Output: buffer for canonical URL (must be at least 2048 bytes)
-   -- Output_Len: actual length written
-   -- Returns: result code
+   --  Canonicalize URL
+   --  Input: null-terminated C string
+   --  Output: buffer for canonical URL (must be at least 2048 bytes)
+   --  Output_Len: actual length written
+   --  Returns: result code
    function Canonicalize_FFI
      (Input      : chars_ptr;
       Output     : chars_ptr;
@@ -32,11 +32,11 @@ package Core_FFI is
      Convention    => C,
      External_Name => "hadlink_canonicalize";
 
-   -- Generate short code
-   -- URL: canonical URL (null-terminated C string)
-   -- Secret: 32-byte secret key
-   -- Output: buffer for short code (must be at least 8 bytes)
-   -- Returns: 0 on success, non-zero on error
+   --  Generate short code
+   --  URL: canonical URL (null-terminated C string)
+   --  Secret: 32-byte secret key
+   --  Output: buffer for short code (must be at least 8 bytes)
+   --  Returns: 0 on success, non-zero on error
    function Make_Short_Code_FFI
      (URL    : chars_ptr;
       Secret : chars_ptr;

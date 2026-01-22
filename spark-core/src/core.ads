@@ -1,25 +1,25 @@
--- Core types and interfaces for hadlink
--- SPARK mode for formal verification
+--  Core types and interfaces for hadlink
+--  SPARK mode for formal verification
 pragma SPARK_Mode (On);
 
 package Core with Pure is
 
-   -- Maximum URL length (enforced at boundary)
+   --  Maximum URL length (enforced at boundary)
    Max_URL_Length : constant := 2048;
-   
-   -- Fixed short code length
+
+   --  Fixed short code length
    Short_Code_Length : constant := 8;
-   
-   -- Base62 alphabet size
+
+   --  Base62 alphabet size
    Base62_Size : constant := 62;
 
-   -- URL length constraints
+   --  URL length constraints
    subtype URL_Length is Natural range 1 .. Max_URL_Length;
-   
-   -- Short code length constraint
+
+   --  Short code length constraint
    subtype Code_Length is Natural range Short_Code_Length .. Short_Code_Length;
 
-   -- Result codes for operations
+   --  Result codes for operations
    type Result_Code is
      (Success,
       Invalid_Length,
@@ -29,23 +29,23 @@ package Core with Pure is
       Credentials_Present,
       Invalid_Characters);
 
-   -- Opaque URL types (construction only via validation)
+   --  Opaque URL types (construction only via validation)
    type Raw_URL is private;
    type Valid_URL is private;
    type Short_Code is private;
 
-   -- Secret key for HMAC-based short code generation
+   --  Secret key for HMAC-based short code generation
    subtype Secret_Key is String (1 .. 32);
 
-   -- Result type for Canonicalize
+   --  Result type for Canonicalize
    type Canonicalize_Result is record
       Status : Result_Code;
       URL    : Valid_URL;
    end record;
 
-   -- Canonicalize a raw URL into a valid, normalized form
-   -- Pre: Input length is within bounds
-   -- Post: If Success, output is canonicalized and safe
+   --  Canonicalize a raw URL into a valid, normalized form
+   --  Pre: Input length is within bounds
+   --  Post: If Success, output is canonicalized and safe
    function Canonicalize (Input : String) return Canonicalize_Result
    with
      Pre  => Input'Length <= Max_URL_Length,
@@ -54,9 +54,9 @@ package Core with Pure is
                 and then Not_Private_Address (Canonicalize'Result.URL)
                 and then No_Credentials (Canonicalize'Result.URL));
 
-   -- Generate deterministic short code from valid URL
-   -- Pre: URL is validated
-   -- Post: Code is exactly Short_Code_Length characters
+   --  Generate deterministic short code from valid URL
+   --  Pre: URL is validated
+   --  Post: Code is exactly Short_Code_Length characters
    function Make_Short_Code
      (URL    : Valid_URL;
       Secret : Secret_Key)
@@ -64,7 +64,7 @@ package Core with Pure is
    with
      Post => Length (Make_Short_Code'Result) = Short_Code_Length;
 
-   -- Query functions for proof
+   --  Query functions for proof
    function Is_HTTP_Or_HTTPS (URL : Valid_URL) return Boolean;
    function Not_Private_Address (URL : Valid_URL) return Boolean;
    function No_Credentials (URL : Valid_URL) return Boolean;
@@ -74,7 +74,7 @@ package Core with Pure is
 
 private
 
-   -- Private representations (not exposed to FFI)
+   --  Private representations (not exposed to FFI)
    type Raw_URL is record
       Data : String (1 .. Max_URL_Length);
       Len  : URL_Length;

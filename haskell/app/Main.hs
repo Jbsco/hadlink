@@ -5,11 +5,8 @@ module Main (main) where
 import System.Environment (getArgs, lookupEnv)
 import System.Exit (die)
 import Data.Maybe (fromMaybe)
-import qualified Data.Text as T
-import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as BS8
 import Network.Wai.Handler.Warp (run)
-import Text.Read (readMaybe)
 
 import API
 import Store

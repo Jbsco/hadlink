@@ -15,7 +15,6 @@ import qualified Data.Text.Encoding as TE
 import qualified Data.ByteString.Lazy as BL
 import Network.Wai
 import Network.HTTP.Types
-import Network.HTTP.Types.URI (parseQuery)
 import Data.Aeson (object, (.=), encode)
 
 -- | WAI Application

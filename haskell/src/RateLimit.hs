@@ -1,5 +1,6 @@
 module RateLimit
   ( RateLimiter
+  , TokenBucket(MkTokenBucket)
   , newRateLimiter
   , checkLimit
   ) where
