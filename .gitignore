@@ -1,0 +1,68 @@
+# Haskell
+haskell/dist/
+haskell/dist-newstyle/
+haskell/cabal-dev/
+haskell/.cabal-sandbox/
+haskell/cabal.sandbox.config
+haskell/*.o
+haskell/*.hi
+haskell/*.chi
+haskell/*.chs.h
+haskell/.virtualenv
+haskell/.hsenv
+haskell/.hpc
+haskell/.stack-work/
+haskell/stack.yaml.lock
+haskell/*.tix
+haskell/.HTF/
+
+# Ada/SPARK
+spark-core/*.o
+spark-core/*.ali
+spark-core/b~*
+spark-core/*.cgpr
+spark-core/proof/obj/
+spark-core/proof/bin/
+spark-core/proof/gnatprove/
+
+# Secrets and configuration
+*.key
+secret.key
+secrets/
+config.yaml
+.env
+
+# Storage
+*.db
+*.db-shm
+*.db-wal
+data/
+
+# Logs
+*.log
+logs/
+
+# Editor artifacts
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Build artifacts
+build/
+bin/
+target/
+
+# Deployment
+deploy/docker/data/
+
+# redo build system
+.redo/
+all
+test
+prove
+clean
+generate-secret
+haskell/build
