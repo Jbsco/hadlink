@@ -63,6 +63,7 @@ deploy/docker/data/
 all
 test
 prove
+style
 clean
 generate-secret
 haskell/build

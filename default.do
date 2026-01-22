@@ -11,6 +11,7 @@ Available targets:
   redo all            - Build all components
   redo test           - Run property-based tests
   redo prove          - Run SPARK proofs
+  redo style          - Run code style checks
   redo clean          - Clean build artifacts
   redo deploy         - Build deployment artifacts
 
