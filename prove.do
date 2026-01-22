@@ -14,6 +14,6 @@ fi
 
 echo "Running SPARK proofs..."
 cd spark-core
-alr exec -- gnatprove -P hadlink_core.gpr --level=2
+alr exec -- gnatprove -P hadlink_core.gpr --level=2 --report=all
 
 touch "$3"
