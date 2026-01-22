@@ -27,8 +27,10 @@ echo ""
 echo "Checking Haskell style..."
 cd "$(dirname "$0")/haskell"
 
-# Check if hlint is available
-if command -v hlint &> /dev/null; then
+# Try to use hlint via stack, fallback to system hlint
+if stack exec -- which hlint &> /dev/null; then
+    stack exec -- hlint src/ app/ --color=never || true
+elif command -v hlint &> /dev/null; then
     hlint src/ app/ --color=never || true
 else
     echo "Warning: hlint not found - install with 'stack install hlint'"

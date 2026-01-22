@@ -156,15 +156,25 @@ See [docs/ROADMAP.md](docs/ROADMAP.md) for detailed milestones.
    ```bash
    # Arch/Manjaro
    yay -S alire-bin
-   
+
    # Or download from https://alire.ada.dev
    ```
-   
+
    Then in `spark-core/` directory:
    ```bash
    cd spark-core
    alr build        # Build SPARK core
    alr exec -- gnatprove -P hadlink_core.gpr  # Run proofs
+   ```
+
+4. **HLint** - Haskell style checker (optional)
+   ```bash
+   # Install via Stack (recommended - matches project GHC version)
+   cd haskell
+   stack install hlint
+
+   # Or system package (may have version conflicts)
+   # Arch: sudo pacman -S hlint
    ```
 
 ### Build
@@ -174,6 +184,7 @@ cd hadlink
 redo all      # Build everything
 redo test     # Run tests
 redo prove    # SPARK proofs (Phase 2+)
+redo style    # Check code style
 ```
 
 ### Common Commands
@@ -181,6 +192,7 @@ redo prove    # SPARK proofs (Phase 2+)
 ```bash
 redo           # Show help
 redo clean     # Clean artifacts
+redo style     # Check SPARK and Haskell style
 redo generate-secret  # Generate deployment secret
 ```
 
