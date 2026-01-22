@@ -22,7 +22,7 @@ Development targets:
 Example workflow:
   redo all            # Build everything
   redo test           # Run tests
-  redo prove          # Run SPARK proofs (Phase 2+)
+  redo prove          # Run SPARK proofs
 
 For more information, see docs/DESIGN.md
 EOF
