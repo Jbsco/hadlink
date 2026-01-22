@@ -35,9 +35,10 @@ library
   hs-source-dirs: src
   exposed-modules:
     Types
-    FFI
-    API
+    Canonicalize
+    ShortCode
     Store
+    API
     RateLimit
     ProofOfWork
   
@@ -53,7 +54,9 @@ library
     memory >= 0.16,
     containers >= 0.6,
     time >= 1.9,
-    stm >= 2.5
+    stm >= 2.5,
+    network-uri >= 2.6,
+    aeson >= 2.0
 
 executable hadlink
   import: common-options
