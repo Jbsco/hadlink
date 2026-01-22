@@ -13,30 +13,30 @@ Follow the migration plan: Haskell-only → SPARK extraction → frozen API.
 **Goal**: Working URL shortener in pure Haskell with well-defined invariants.
 
 ### Milestone 1.1: Core Functionality
-- [ ] URL validation and canonicalization in Haskell
-- [ ] Deterministic short code generation (HMAC-SHA256 + Base62)
-- [ ] Basic storage backend (SQLite)
-- [ ] Simple HTTP API (create + resolve)
+- [x] URL validation and canonicalization in Haskell
+- [x] Deterministic short code generation (HMAC-SHA256 + Base62)
+- [x] Basic storage backend (SQLite)
+- [x] Simple HTTP API (create + resolve)
 
 ### Milestone 1.2: Property Tests
-- [ ] Property-based test suite
+- [x] Property-based test suite framework (QuickCheck + Hedgehog)
 - [ ] URL canonicalization properties
 - [ ] Short code generation properties
 - [ ] Round-trip properties
 - [ ] Negative testing for invalid inputs
 
 ### Milestone 1.3: Abuse Mitigation
-- [ ] Rate limiting (token bucket per IP/subnet)
-- [ ] Optional Proof-of-Work verification
-- [ ] Bounded memory structures
+- [x] Rate limiting (token bucket structure)
+- [x] Optional Proof-of-Work verification
+- [x] Bounded memory structures
 
 ### Deliverables
-- Working Haskell implementation
-- Comprehensive test suite
-- Documentation of invariants
-- Initial deployment (Docker + systemd)
+- [x] Working Haskell implementation
+- [ ] Comprehensive test suite (framework ready)
+- [x] Documentation of invariants
+- [x] Initial deployment (Docker + systemd)
 
-**Status**: In Progress
+**Status**: Complete (tests pending)
 
 ---
 
@@ -45,22 +45,23 @@ Follow the migration plan: Haskell-only → SPARK extraction → frozen API.
 **Goal**: Move security-critical logic to SPARK with formal proofs.
 
 ### Milestone 2.1: SPARK Canonicalization
-- [ ] Implement URL parsing in SPARK
-- [ ] Prove scheme validation (http/https only)
-- [ ] Prove private address rejection
-- [ ] Prove credential rejection
-- [ ] Prove length bounds
+- [x] Implement URL parsing in SPARK
+- [x] Implement scheme validation (http/https only)
+- [x] Implement private address rejection
+- [x] Implement credential rejection
+- [x] Implement length bounds
+- [ ] Prove all properties (requires gnatprove)
 
 ### Milestone 2.2: SPARK Short Code Generation
-- [ ] Implement HMAC-SHA256 in SPARK
-- [ ] Implement Base62 encoding
-- [ ] Prove determinism
-- [ ] Prove output length
-- [ ] Prove character set constraints
+- [x] Implement HMAC-SHA256 in SPARK (simplified)
+- [x] Implement Base62 encoding
+- [ ] Prove determinism (requires gnatprove)
+- [ ] Prove output length (requires gnatprove)
+- [ ] Prove character set constraints (requires gnatprove)
 
 ### Milestone 2.3: FFI Integration
-- [ ] Design C-compatible boundary
-- [ ] Export SPARK functions
+- [x] Design C-compatible boundary
+- [x] Export SPARK functions
 - [ ] Import into Haskell
 - [ ] Maintain identical external behavior
 - [ ] Property tests pass with SPARK backend
@@ -151,7 +152,7 @@ The following will **not** be added to maintain scope:
 ## Current Status
 
 **Current Version**: v0.1.0-dev
-**Current Phase**: Phase 1
+**Current Phase**: Phase 2
 **Last Updated**: 2026-01-22
 
 ---

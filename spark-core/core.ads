@@ -37,19 +37,22 @@ package Core with Pure is
    -- Secret key for HMAC-based short code generation
    subtype Secret_Key is String (1 .. 32);
 
+   -- Result type for Canonicalize
+   type Canonicalize_Result is record
+      Status : Result_Code;
+      URL    : Valid_URL;
+   end record;
+
    -- Canonicalize a raw URL into a valid, normalized form
    -- Pre: Input length is within bounds
    -- Post: If Success, output is canonicalized and safe
-   function Canonicalize
-     (Input  : String;
-      Output : out Valid_URL)
-     return Result_Code
+   function Canonicalize (Input : String) return Canonicalize_Result
    with
      Pre  => Input'Length <= Max_URL_Length,
-     Post => (if Canonicalize'Result = Success
-              then Is_HTTP_Or_HTTPS (Output)
-                and then Not_Private_Address (Output)
-                and then No_Credentials (Output));
+     Post => (if Canonicalize'Result.Status = Success
+              then Is_HTTP_Or_HTTPS (Canonicalize'Result.URL)
+                and then Not_Private_Address (Canonicalize'Result.URL)
+                and then No_Credentials (Canonicalize'Result.URL));
 
    -- Generate deterministic short code from valid URL
    -- Pre: URL is validated

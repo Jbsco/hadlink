@@ -110,12 +110,21 @@ See [THREAT_MODEL.md](THREAT_MODEL.md) for full details.
 
 ## Development Status
 
-**Current Phase**: Phase 1 (Haskell implementation)
+**Current Phase**: Phase 1 Complete → Phase 2
 
 [x] Project structure and documentation
-[x] Build system (redo)
-[x] Type definitions and specifications
-[ ] Implementation in progress
+[x] Build system (redo + Stack)
+[x] Phase 1: Complete Haskell implementation
+  - Core modules: Types, Canonicalize, ShortCode, Store, API
+  - Security: ProofOfWork, RateLimit
+  - Executables: shorten/redirect daemon modes
+  - Clean build
+[x] Phase 2: SPARK core implementation
+  - SPARK canonicalization (URL validation, scheme checks, private IP blocking)
+  - SPARK short code generation (HMAC + Base62)
+  - C-compatible FFI boundary
+  - Clean build (proofs require gnatprove)
+[ ] Phase 2.5: FFI integration into Haskell (next)
 
 See [docs/ROADMAP.md](docs/ROADMAP.md) for detailed milestones.
 
