@@ -44,14 +44,13 @@ When in doubt, open an issue first.
 
 For Haskell development:
 ```bash
-# Install GHC and cabal
-ghcup install ghc 9.2.8
-ghcup install cabal 3.10
+# Install Stack
+curl -sSL https://get.haskellstack.org/ | sh
 
 # Build project
 cd haskell
-cabal build
-cabal test
+stack build
+stack test
 ```
 
 For SPARK development:

@@ -1,0 +1,6 @@
+resolver: lts-21.25  # GHC 9.4.8
+
+packages:
+  - .
+
+extra-deps: []

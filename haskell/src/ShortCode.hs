@@ -9,13 +9,10 @@ module ShortCode
 import Types
 import qualified Data.Text as T
 import qualified Data.ByteString as BS
-import qualified Data.ByteString.Char8 as BS8
-import Data.Text.Encoding (encodeUtf8, decodeUtf8)
-import Crypto.Hash (hash, Digest, SHA256)
+import Data.Text.Encoding (encodeUtf8)
 import Crypto.MAC.HMAC (hmac, HMAC)
+import Crypto.Hash (SHA256)
 import Data.ByteArray (convert)
-import Data.Bits (shiftR, (.&.))
-import Data.Word (Word8)
 
 -- | Generate a deterministic 8-character short code
 -- Phase 1: Pure Haskell implementation using HMAC-SHA256 + Base62
@@ -48,13 +45,8 @@ base62Encode bs
       let (q, r) = n `divMod` 62
           c = base62Alphabet !! fromIntegral r
       in go q (c : acc)
-    
+
     -- Convert bytes to a big integer
     bytesToInteger :: BS.ByteString -> Integer
     bytesToInteger = BS.foldl' (\acc b -> acc * 256 + fromIntegral b) 0
 
--- | Validate that a short code only contains base62 characters
-isValidShortCode :: T.Text -> Bool
-isValidShortCode code =
-  T.length code == 8 &&
-  T.all (`elem` base62Alphabet) code

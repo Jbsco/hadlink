@@ -132,11 +132,14 @@ See [docs/ROADMAP.md](docs/ROADMAP.md) for detailed milestones.
    export PATH=$PATH:$(pwd)/bin
    ```
 
-2. **GHC and Cabal** - Haskell toolchain
+2. **Stack** - Haskell build tool
    ```bash
-   curl --proto '=https' --tlsv1.2 -sSf https://get-ghcup.haskell.org | sh
-   ghcup install ghc 9.2.8
-   ghcup install cabal 3.10
+   # On most systems
+   curl -sSL https://get.haskellstack.org/ | sh
+
+   # Or via package manager
+   # Arch: sudo pacman -S stack
+   # Ubuntu: sudo apt install haskell-stack
    ```
 
 3. **GNAT with SPARK** (Optional, for Phase 2)

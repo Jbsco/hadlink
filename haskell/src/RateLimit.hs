@@ -12,14 +12,11 @@ import Data.Time.Clock
 -- | Token bucket rate limiter
 -- TODO: Implement fixed-size hash table with aging
 data RateLimiter = RateLimiter
-  { rlBuckets :: TVar (Map.Map ClientIP TokenBucket)
-  , rlConfig  :: Config
+  { _rlBuckets :: TVar (Map.Map ClientIP TokenBucket)
+  , _rlConfig  :: Config
   }
 
-data TokenBucket = TokenBucket
-  { tbTokens    :: Int
-  , tbLastCheck :: UTCTime
-  }
+newtype TokenBucket = MkTokenBucket UTCTime
 
 -- | Create a new rate limiter
 newRateLimiter :: Config -> IO RateLimiter
@@ -29,7 +26,7 @@ newRateLimiter config = do
 
 -- | Check if request is allowed under rate limit
 checkLimit :: RateLimiter -> ClientIP -> IO Bool
-checkLimit limiter ip = do
+checkLimit _limiter _ip = do
   -- TODO: Implement token bucket algorithm
   -- 1. Get or create bucket for IP
   -- 2. Refill tokens based on time elapsed

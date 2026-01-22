@@ -7,6 +7,6 @@ redo-ifchange haskell/build
 
 echo "Running property-based tests..."
 cd haskell
-cabal test
+stack test
 
 touch "$3"

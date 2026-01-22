@@ -8,7 +8,7 @@ module ProofOfWork
 import Types
 import qualified Data.ByteString as BS
 import Data.Text.Encoding (encodeUtf8)
-import Crypto.Hash (hash, Digest, SHA256, digestFromByteString)
+import Crypto.Hash (hash, Digest, SHA256)
 import Data.ByteArray (convert)
 import Data.Bits (testBit)
 import Data.Word (Word8)
@@ -33,7 +33,7 @@ leadingZeroBits bs = go 0 (BS.unpack bs)
     go count (byte:rest)
       | byte == 0 = go (count + 8) rest
       | otherwise = count + countLeadingZeros byte
-    
+
     -- Count leading zeros in a single byte
     countLeadingZeros :: Word8 -> Int
     countLeadingZeros byte = length $ takeWhile not [testBit byte i | i <- [7,6..0]]

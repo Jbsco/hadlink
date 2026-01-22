@@ -1,7 +1,18 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE DeriveGeneric #-}
 
-module Types where
+module Types
+  ( RawURL(..)
+  , ValidURL(..)
+  , ShortCode(..)
+  , ClientIP(..)
+  , Difficulty(..)
+  , APIKey(..)
+  , Nonce(..)
+  , ValidationError(..)
+  , APIError(..)
+  , Config(..)
+  ) where
 
 import Data.Text (Text)
 import Data.ByteString (ByteString)

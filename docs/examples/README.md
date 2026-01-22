@@ -31,10 +31,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      
+
       - name: Build
         run: make build
-      
+
       - name: Create short link
         env:
           HADLINK_API: ${{ secrets.HADLINK_API }}

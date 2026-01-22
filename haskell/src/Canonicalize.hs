@@ -20,37 +20,37 @@ canonicalize (RawURL rawUrl) = do
   -- Check length
   when (T.length rawUrl > 2048) $
     Left InvalidLength
-  
+
   when (T.null rawUrl) $
     Left InvalidLength
-  
+
   -- Parse URI
   uri <- case parseURI (T.unpack rawUrl) of
     Nothing -> Left (ParseError "Invalid URI syntax")
     Just u  -> Right u
-  
+
   -- Validate scheme
-  let scheme = map toLower (uriScheme uri)
-  unless (scheme == "http:" || scheme == "https:") $
+  let urlScheme = map toLower (uriScheme uri)
+  unless (urlScheme == "http:" || urlScheme == "https:") $
     Left InvalidScheme
-  
+
   -- Get authority
   auth <- case uriAuthority uri of
     Nothing -> Left InvalidHost
     Just a  -> Right a
-  
+
   -- Check for credentials
   when (hasCredentialsInAuth auth) $
     Left CredentialsPresent
-  
+
   -- Check for private/local addresses
   let host = uriRegName auth
   when (isPrivateHost host) $
     Left PrivateAddress
-  
+
   -- Canonicalize: lowercase scheme and host, remove default ports
   let canonicalUri = normalizeURI uri
-  
+
   return $ ValidURL (T.pack $ uriToString id canonicalUri "")
   where
     when True action = action
@@ -107,7 +107,7 @@ normalizeURI uri = uri
       { uriRegName = map toLower (uriRegName auth)
       , uriPort = normalizePort (uriScheme uri) (uriPort auth)
       }
-    
+
     normalizePort "http:" ":80" = ""
     normalizePort "https:" ":443" = ""
     normalizePort _ port = port
