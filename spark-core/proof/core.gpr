@@ -1,0 +1,32 @@
+project Core is
+
+   for Source_Dirs use ("..");
+   for Object_Dir use "obj";
+   for Exec_Dir use "bin";
+
+   for Main use ("core.adb");
+
+   package Compiler is
+      for Default_Switches ("Ada") use 
+        ("-gnatwa",    -- Enable all warnings
+         "-gnatwe",    -- Treat warnings as errors
+         "-gnaty",     -- Enable style checks
+         "-gnat2012",  -- Use Ada 2012 standard
+         "-O2",        -- Optimization level
+         "-g");        -- Debug info
+   end Compiler;
+
+   package Prove is
+      for Proof_Switches ("Ada") use
+        ("--level=2",           -- Medium proof level
+         "--prover=cvc4,z3",    -- Use multiple provers
+         "--timeout=30",         -- Timeout per VC
+         "--steps=10000",        -- Max steps
+         "--proof=progressive"); -- Progressive proof strategy
+   end Prove;
+
+   package Builder is
+      for Default_Switches ("Ada") use ("-s");
+   end Builder;
+
+end Core;

@@ -1,0 +1,26 @@
+[Unit]
+Description=hadlink URL Shortener Creation Daemon
+After=network.target
+Documentation=https://github.com/jbsco/hadlink
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/hadlink shorten
+User=hadlink
+Group=hadlink
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/hadlink
+MemoryMax=128M
+Restart=on-failure
+RestartSec=5s
+
+# Environment
+Environment=HADLINK_STORAGE=/var/lib/hadlink/hadlink.db
+Environment=HADLINK_MODE=shorten
+Environment=HADLINK_PORT=8443
+EnvironmentFile=/etc/hadlink/secret.conf
+
+[Install]
+WantedBy=multi-user.target

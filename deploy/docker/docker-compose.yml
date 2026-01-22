@@ -1,0 +1,44 @@
+version: "3.9"
+
+services:
+  # Fast, read-only redirect service (public-facing)
+  redirect:
+    image: hadlink:latest
+    command: redirect
+    ports:
+      - "443:8080"
+    volumes:
+      - ./data:/data:ro
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    restart: unless-stopped
+    environment:
+      - HADLINK_STORAGE=/data/hadlink.db
+      - HADLINK_MODE=redirect
+
+  # Slow, guarded creation service (private, LAN-only)
+  shorten:
+    image: hadlink:latest
+    command: shorten
+    ports:
+      - "127.0.0.1:8443:8443"
+    volumes:
+      - ./data:/data:rw
+    environment:
+      - HADLINK_SECRET_FILE=/run/secrets/secret
+      - HADLINK_STORAGE=/data/hadlink.db
+      - HADLINK_POW_DIFFICULTY=0
+      - HADLINK_RATE_LIMIT=10
+      - HADLINK_MODE=shorten
+    secrets:
+      - secret
+    cap_drop:
+      - ALL
+    restart: unless-stopped
+
+secrets:
+  secret:
+    file: ./secret.key

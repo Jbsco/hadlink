@@ -1,0 +1,88 @@
+cabal-version: 2.4
+name:          hadlink
+version:       0.1.0.0
+synopsis:      High-assurance URL shortener with SPARK proofs
+description:   Embedded-style URL shortener with formally verified core
+license:       MIT
+author:        hadlink contributors
+maintainer:    hadlink@example.com
+category:      Web
+build-type:    Simple
+
+common common-options
+  default-language: Haskell2010
+  ghc-options:
+    -Wall
+    -Werror
+    -Wcompat
+    -Widentities
+    -Wincomplete-uni-patterns
+    -Wincomplete-record-updates
+    -Wredundant-constraints
+    -Wnoncanonical-monad-instances
+    -fhide-source-paths
+    -Wmissing-export-lists
+    -Wpartial-fields
+  
+  default-extensions:
+    OverloadedStrings
+    DeriveGeneric
+    LambdaCase
+    RecordWildCards
+
+library
+  import: common-options
+  hs-source-dirs: src
+  exposed-modules:
+    Types
+    FFI
+    API
+    Store
+    RateLimit
+    ProofOfWork
+  
+  build-depends:
+    base >= 4.14 && < 5,
+    text >= 1.2,
+    bytestring >= 0.10,
+    warp >= 3.3,
+    wai >= 3.2,
+    http-types >= 0.12,
+    sqlite-simple >= 0.4,
+    cryptonite >= 0.29,
+    memory >= 0.16,
+    containers >= 0.6,
+    time >= 1.9,
+    stm >= 2.5
+
+executable hadlink
+  import: common-options
+  main-is: Main.hs
+  hs-source-dirs: app
+  
+  build-depends:
+    base,
+    hadlink,
+    text,
+    bytestring
+  
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N
+
+test-suite hadlink-test
+  import: common-options
+  type: exitcode-stdio-1.0
+  main-is: Properties.hs
+  hs-source-dirs: test
+  
+  build-depends:
+    base,
+    hadlink,
+    QuickCheck >= 2.14,
+    hedgehog >= 1.0,
+    tasty >= 1.4,
+    tasty-quickcheck >= 0.10,
+    tasty-hedgehog >= 1.1,
+    text,
+    bytestring
+  
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N
