@@ -120,7 +120,5 @@ isPrivateIP = isPrivateIPString . T.unpack
 hasCredentials :: ValidURL -> Bool
 hasCredentials (ValidURL url) =
   case parseURI (T.unpack url) of
-    Just uri -> case uriAuthority uri of
-      Just auth -> hasCredentialsInAuth auth
-      Nothing -> False
+    Just uri -> maybe False hasCredentialsInAuth (uriAuthority uri)
     Nothing -> False

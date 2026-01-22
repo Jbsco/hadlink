@@ -1,5 +1,4 @@
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE QuasiQuotes #-}
 
 module Store
   ( SQLiteStore
@@ -39,7 +38,7 @@ closeStore (SQLiteStore conn) = SQL.close conn
 initializeStore :: SQLiteStore -> IO ()
 initializeStore (SQLiteStore conn) = do
   -- Create table if it doesn't exist
-  SQL.execute_ conn $ SQL.Query $ T.pack $
+  SQL.execute_ conn $ SQL.Query $ T.pack
     "CREATE TABLE IF NOT EXISTS links (\n\
     \  short_code TEXT PRIMARY KEY NOT NULL,\n\
     \  canonical_url TEXT NOT NULL,\n\
@@ -47,7 +46,7 @@ initializeStore (SQLiteStore conn) = do
     \)"
 
   -- Create index on created_at for potential cleanup/analytics
-  SQL.execute_ conn $ SQL.Query $ T.pack $
+  SQL.execute_ conn $ SQL.Query $ T.pack
     "CREATE INDEX IF NOT EXISTS idx_created_at ON links(created_at)"
 
 -- | Store a short code -> URL mapping
