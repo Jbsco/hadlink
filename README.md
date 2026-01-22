@@ -123,7 +123,8 @@ See [THREAT_MODEL.md](THREAT_MODEL.md) for full details.
   - SPARK canonicalization (URL validation, scheme checks, private IP blocking)
   - SPARK short code generation (HMAC + Base62)
   - C-compatible FFI boundary
-  - Clean build (proofs require gnatprove)
+  - Alire package with gnatprove dependency
+  - Clean build, formal verification tooling operational
 [ ] Phase 2.5: FFI integration into Haskell (next)
 
 See [docs/ROADMAP.md](docs/ROADMAP.md) for detailed milestones.
@@ -151,8 +152,20 @@ See [docs/ROADMAP.md](docs/ROADMAP.md) for detailed milestones.
    # Ubuntu: sudo apt install haskell-stack
    ```
 
-3. **GNAT with SPARK** (Optional, for Phase 2)
-   - Download from https://www.adacore.com/community
+3. **Alire** - Ada/SPARK package manager (for Phase 2 proofs)
+   ```bash
+   # Arch/Manjaro
+   yay -S alire-bin
+   
+   # Or download from https://alire.ada.dev
+   ```
+   
+   Then in `spark-core/` directory:
+   ```bash
+   cd spark-core
+   alr build        # Build SPARK core
+   alr exec -- gnatprove -P hadlink_core.gpr  # Run proofs
+   ```
 
 ### Build
 

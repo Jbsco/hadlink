@@ -1,0 +1,13 @@
+name = "hadlink_core"
+description = ""
+version = "0.1.0-dev"
+
+authors = ["\u0001"]
+maintainers = ["\u0001 <example@example.com>"]
+maintainers-logins = ["testuser"]
+licenses = "MIT OR Apache-2.0 WITH LLVM-exception"
+website = ""
+tags = []
+
+[[depends-on]]
+gnatprove = "^14.1.1"
