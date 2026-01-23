@@ -3,7 +3,7 @@ name:          hadlink
 version:       0.1.0.0
 synopsis:      High-assurance URL shortener with SPARK proofs
 description:   Embedded-style URL shortener with formally verified core
-license:       MIT
+license:       AGPL-3.0-or-later
 author:        hadlink contributors
 maintainer:    hadlink@example.com
 category:      Web

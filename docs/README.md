@@ -6,7 +6,7 @@ hadlink is a URL shortener designed with embedded systems principles: determinis
 
 ## Core Principle
 
-**SPARK proves invariants. Haskell composes systems. The boundary is small, frozen, and boring.**
+**SPARK proves invariants. Haskell composes systems. The boundary is small and frozen.**
 
 ---
 
@@ -225,13 +225,11 @@ By design:
 
 ## Why This Approach?
 
-This is not "using two languages for fun."
-
-This is using **two verification regimes, each where it is strongest**:
+This project is using **two verification regimes, each where it is strongest**:
 - SPARK for exhaustive proof
 - Haskell for compositional testing
 
-This mirrors how high-assurance systems are built in practice.
+The goal is building a high-assurance system.
 
 ---
 
@@ -243,7 +241,7 @@ This mirrors how high-assurance systems are built in practice.
 - Redirect path performs no allocation beyond lookup
 - Short codes cannot be user-chosen
 - Storage is append-only
-- SPARK functions are total (no partial failures)
+- SPARK functions are total
 
 Violating these is a bug.
 
@@ -251,7 +249,7 @@ Violating these is a bug.
 
 ## Future Considerations
 
-Potential extensions (still maintaining simplicity):
+Potential extensions:
 - Read-only backup mirror
 - Configurable TTLs (default: infinite)
 - Multiple namespaces (/b/, /a/, /h/)
@@ -266,4 +264,3 @@ This design draws from:
 - Embedded systems design principles
 - High-assurance software engineering
 - Infrastructure-first thinking
-- Boring technology manifesto
