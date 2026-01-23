@@ -65,5 +65,6 @@ test
 prove
 style
 clean
+build
 generate-secret
 haskell/build

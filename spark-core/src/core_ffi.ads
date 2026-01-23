@@ -6,6 +6,20 @@ with Interfaces.C.Strings; use Interfaces.C.Strings;
 
 package Core_FFI is
 
+   --  Ada runtime initialization (call before other FFI functions)
+   procedure Hadlink_Init
+   with
+     Export        => True,
+     Convention    => C,
+     External_Name => "hadlink_init";
+
+   --  Ada runtime finalization (call on shutdown)
+   procedure Hadlink_Final
+   with
+     Export        => True,
+     Convention    => C,
+     External_Name => "hadlink_final";
+
    --  Result codes matching Core.Result_Code
    type FFI_Result_Code is new int;
 

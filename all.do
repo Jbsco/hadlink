@@ -1,4 +1,4 @@
 #!/bin/bash
 # Build all components
 
-redo-ifchange haskell/build
+redo-ifchange spark-core/build haskell/build

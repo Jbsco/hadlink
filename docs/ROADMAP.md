@@ -61,8 +61,13 @@ Follow the migration plan: Haskell-only → SPARK extraction → frozen API.
 
 ### Milestone 2.3: FFI Integration
 - [x] Design C-compatible boundary
-- [x] Export SPARK functions
-- [ ] Import into Haskell
+- [x] Export SPARK functions (hadlink_canonicalize, hadlink_make_short_code)
+- [x] Build SPARK as static library with -fPIC
+- [x] Create Haskell FFI module (SparkFFI.hs)
+- [x] Update Haskell modules to use FFI (IO-based signatures)
+- [x] Configure build system (link SPARK + GNAT runtime)
+- [x] Haskell code compiles and links
+- [ ] Fix Ada runtime initialization (blocker)
 - [ ] Maintain identical external behavior
 - [ ] Property tests pass with SPARK backend
 
@@ -72,7 +77,7 @@ Follow the migration plan: Haskell-only → SPARK extraction → frozen API.
 - Haskell using SPARK via FFI
 - Test suite validates equivalence
 
-**Status**: Not Started
+**Status**: In Progress (blocked on Ada runtime initialization)
 
 ---
 
@@ -152,8 +157,10 @@ The following will **not** be added to maintain scope:
 ## Current Status
 
 **Current Version**: v0.1.0-dev
-**Current Phase**: Phase 2
-**Last Updated**: 2026-01-22
+**Current Phase**: Phase 2.5 (FFI Integration)
+**Last Updated**: 2026-01-23
+
+**Blocker**: Ada runtime initialization for FFI calls. The Haskell executable compiles and links successfully against the SPARK library, but segfaults when calling FFI functions due to missing Ada runtime setup (elaboration, secondary stack, exception handling).
 
 ---
 

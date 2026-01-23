@@ -110,22 +110,35 @@ See [THREAT_MODEL.md](THREAT_MODEL.md) for full details.
 
 ## Development Status
 
-**Current Phase**: Phase 1 Complete → Phase 2
+**Current Phase**: Phase 2.5 (FFI Integration - In Progress)
 
 [x] Project structure and documentation
-[x] Build system (redo + Stack)
+[x] Build system (redo + Stack + Alire)
 [x] Phase 1: Complete Haskell implementation
   - Core modules: Types, Canonicalize, ShortCode, Store, API
   - Security: ProofOfWork, RateLimit
   - Executables: shorten/redirect daemon modes
-  - Clean build
+  - Clean build with -Werror
 [x] Phase 2: SPARK core implementation
   - SPARK canonicalization (URL validation, scheme checks, private IP blocking)
   - SPARK short code generation (HMAC + Base62)
-  - C-compatible FFI boundary
+  - C-compatible FFI boundary (hadlink_canonicalize, hadlink_make_short_code)
   - Alire package with gnatprove dependency
+  - Static library build with -fPIC
   - Clean build, formal verification tooling operational
-[ ] Phase 2.5: FFI integration into Haskell (next)
+[~] Phase 2.5: FFI integration into Haskell (in progress)
+  - [x] SPARK library builds as static library (libHadlink_Core.a)
+  - [x] Haskell FFI module (SparkFFI.hs) with bindings
+  - [x] Updated Canonicalize and ShortCode to use FFI (IO-based)
+  - [x] Propagated IO changes through API and Main
+  - [x] Build configuration updated (links SPARK + GNAT runtime)
+  - [x] Haskell code compiles and links successfully
+  - [ ] Runtime crashes: Ada runtime initialization issue (blocker)
+
+**Known Issue**: FFI calls segfault due to Ada runtime requirements. Ada libraries need proper elaboration and secondary stack initialization beyond simple C FFI. Requires either:
+  - Standalone library configuration with proper Ada binder
+  - Manual Ada runtime initialization
+  - Alternative FFI approach (C shim layer)
 
 See [docs/ROADMAP.md](docs/ROADMAP.md) for detailed milestones.
 

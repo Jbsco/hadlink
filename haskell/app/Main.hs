@@ -11,9 +11,13 @@ import Network.Wai.Handler.Warp (run)
 import API
 import Store
 import Types
+import SparkFFI (initSpark)
 
 main :: IO ()
 main = do
+    --  Initialize Ada runtime for SPARK FFI
+    initSpark
+    
     args <- getArgs
     case args of
         ["shorten"] -> runShortenDaemon

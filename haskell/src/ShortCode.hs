@@ -7,27 +7,16 @@ module ShortCode
   ) where
 
 import Types
+import SparkFFI (sparkMakeShortCode)
 import qualified Data.Text as T
 import qualified Data.ByteString as BS
-import Data.Text.Encoding (encodeUtf8)
-import Crypto.MAC.HMAC (hmac, HMAC)
-import Crypto.Hash (SHA256)
-import Data.ByteArray (convert)
 
 -- | Generate a deterministic 8-character short code
--- Phase 1: Pure Haskell implementation using HMAC-SHA256 + Base62
--- Phase 2: This will be replaced with FFI call to SPARK
-generateShortCode :: BS.ByteString -> ValidURL -> ShortCode
-generateShortCode secret (ValidURL url) =
-  let urlBytes = encodeUtf8 url
-      -- HMAC-SHA256(secret, url)
-      mac :: HMAC SHA256
-      mac = hmac secret urlBytes
-      digest = convert mac :: BS.ByteString
-      -- Take first 8 bytes and encode to base62
-      shortBytes = BS.take 6 digest  -- 6 bytes gives us good entropy
-      encoded = base62Encode shortBytes
-  in ShortCode (T.take 8 encoded)
+-- Phase 2.5: Uses SPARK core via FFI for short code generation
+generateShortCode :: BS.ByteString -> ValidURL -> IO ShortCode
+generateShortCode secret (ValidURL url) = do
+  code <- sparkMakeShortCode secret url
+  return $ ShortCode code
 
 -- | Base62 alphabet (0-9, a-z, A-Z)
 base62Alphabet :: String

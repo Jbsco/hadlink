@@ -5,6 +5,19 @@ with Core; use Core;
 
 package body Core_FFI is
 
+   --  Ada runtime initialization
+   procedure Hadlink_Init is
+   begin
+      --  Call Ada elaboration (automatically handled by pragma Elaborate_Body)
+      null;
+   end Hadlink_Init;
+
+   --  Ada runtime finalization
+   procedure Hadlink_Final is
+   begin
+      null;
+   end Hadlink_Final;
+
    --  Forward declaration for private helper
    function Result_Code_To_FFI (RC : Result_Code) return FFI_Result_Code;
 

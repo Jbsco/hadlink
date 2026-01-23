@@ -38,12 +38,13 @@ createHandler config store req respond = do
     Just (Just urlBytes) -> do
       let rawUrl = RawURL (TE.decodeUtf8 urlBytes)
 
-      -- Canonicalize URL
-      case canonicalize rawUrl of
+      -- Canonicalize URL (IO operation via SPARK FFI)
+      canonResult <- canonicalize rawUrl
+      case canonResult of
         Left err -> respond $ errorResponse status400 (validationErrorMessage err)
         Right validUrl -> do
-          -- Generate short code
-          let shortCode = generateShortCode (cfgSecret config) validUrl
+          -- Generate short code (IO operation via SPARK FFI)
+          shortCode <- generateShortCode (cfgSecret config) validUrl
 
           -- Store mapping (idempotent)
           put shortCode validUrl store

@@ -41,6 +41,7 @@ library
     API
     RateLimit
     ProofOfWork
+    SparkFFI
   
   build-depends:
     base >= 4.14 && < 5,
@@ -57,6 +58,13 @@ library
     stm >= 2.5,
     network-uri >= 2.6,
     aeson >= 2.0
+  
+  extra-lib-dirs:
+    ../spark-core/lib
+    /usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/adalib
+  extra-libraries:
+    Hadlink_Core
+    gnat_pic
 
 executable hadlink
   import: common-options

@@ -5,6 +5,9 @@ exec >&2
 
 cd "$(dirname "$0")"
 
+# Declare dependency on cabal file and source files
+redo-ifchange hadlink.cabal $(find src app -name '*.hs' 2>/dev/null)
+
 echo "Building Haskell components..."
 stack build
 
