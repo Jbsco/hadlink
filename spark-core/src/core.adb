@@ -33,9 +33,41 @@ package body Core is
    Base62_Alphabet : constant String :=
      "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
 
+   --  Forward declarations for private helper functions
+   function Is_Private_IP (Host : String) return Boolean
+   with Pre => Host'Length >= 1 and then Host'Last < Integer'Last - 1;
+
+   function Has_Valid_Scheme (Input : String) return Boolean
+   with Pre => Input'Length >= 1 and then Input'Last < Integer'Last - 1;
+
+   function Has_Credentials (Input : String) return Boolean
+   with Pre => Input'Length >= 1 and then
+               Input'First >= 1 and then
+               Input'Last < Integer'Last - 10;
+
+   procedure Extract_Host
+     (Input      : String;
+      Host_Start : out Natural;
+      Host_End   : out Natural;
+      Valid      : out Boolean)
+   with
+     Pre  => Input'Length >= 7 and then Input'Last < Integer'Last - 10,
+     Post => (if Valid then
+                Host_Start >= Input'First and then
+                Host_End <= Input'Last and then
+                Host_Start <= Host_End);
+
+   function Compute_Hash
+     (Message : String;
+      Key     : Secret_Key)
+     return String
+   with
+     Pre  => Message'Length >= 1 and then Message'Last < Integer'Last,
+     Post => Compute_Hash'Result'Length = 32 and then
+             Compute_Hash'Result'First = 1;
+
    --  Private IP ranges (simplified checks)
    function Is_Private_IP (Host : String) return Boolean
-   with Pre => Host'Length >= 1 and then Host'Last < Integer'Last - 1
    is
    begin
       --  Check for localhost
@@ -80,7 +112,6 @@ package body Core is
 
    --  Check if URL has valid HTTP/HTTPS scheme
    function Has_Valid_Scheme (Input : String) return Boolean
-   with Pre => Input'Length >= 1 and then Input'Last < Integer'Last - 1
    is
    begin
       if Input'Length < 7 then
@@ -112,9 +143,6 @@ package body Core is
 
    --  Check for credentials (user:pass@) - simplified check
    function Has_Credentials (Input : String) return Boolean
-   with Pre => Input'Length >= 1 and then
-               Input'First >= 1 and then
-               Input'Last < Integer'Last - 10
    is
       Found_At : Boolean := False;
    begin
@@ -150,12 +178,6 @@ package body Core is
       Host_Start : out Natural;
       Host_End   : out Natural;
       Valid      : out Boolean)
-   with
-     Pre  => Input'Length >= 7 and then Input'Last < Integer'Last - 10,
-     Post => (if Valid then
-                Host_Start >= Input'First and then
-                Host_End <= Input'Last and then
-                Host_Start <= Host_End)
    is
       Scheme_End : Natural;
    begin
@@ -269,10 +291,6 @@ package body Core is
      (Message : String;
       Key     : Secret_Key)
      return String
-   with
-     Pre  => Message'Length >= 1 and then Message'Last < Integer'Last,
-     Post => Compute_Hash'Result'Length = 32 and then
-             Compute_Hash'Result'First = 1
    is
       Result   : String (1 .. 32) := (others => '0');
       Hash_Val : Unsigned_32 := 0;
