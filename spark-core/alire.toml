@@ -1,13 +1,7 @@
 name = "hadlink_core"
-description = ""
+description = "SPARK core for hadlink URL shortener"
 version = "0.1.0-dev"
-
-authors = ["\u0001"]
-maintainers = ["\u0001 <example@example.com>"]
-maintainers-logins = ["testuser"]
-licenses = "MIT OR Apache-2.0 WITH LLVM-exception"
-website = ""
-tags = []
+licenses = "AGPL-3.0-or-later"
 
 [[depends-on]]
 gnatprove = "^14.1.1"
