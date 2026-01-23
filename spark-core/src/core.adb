@@ -21,151 +21,193 @@ with Interfaces; use Interfaces;
 
 package body Core is
 
-   --  Forward declarations for private helpers
-   function Is_Private_IP (Host : String) return Boolean;
-   function Has_Valid_Scheme (Input : String) return Boolean;
-   function Has_Credentials (Input : String) return Boolean;
-   procedure Extract_Host
-     (Input : String;
-      Host_Start : out Natural;
-      Host_End : out Natural;
-      Valid : out Boolean);
-   function Compute_HMAC
-     (Message : String;
-      Key : Secret_Key)
-     return String;
+   --  Default empty URL for error cases
+   Empty_URL : constant Valid_URL :=
+     (Data => (others => ' '), Len => 1);
+
+   --  Default empty short code
+   Empty_Code : constant Short_Code :=
+     (Data => (others => '0'));
 
    --  Base62 alphabet for encoding
    Base62_Alphabet : constant String :=
      "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
 
    --  Private IP ranges (simplified checks)
-   function Is_Private_IP (Host : String) return Boolean is
+   function Is_Private_IP (Host : String) return Boolean
+   with Pre => Host'Length >= 1 and then Host'Last < Integer'Last - 1
+   is
    begin
-      --  Check for common private prefixes
-      if Host'Length >= 3 then
-         if Host (Host'First .. Host'First + 2) = "10." or else
-            Host (Host'First .. Host'First + 2) = "127"
-         then
-            return True;
-         end if;
+      --  Check for localhost
+      if Host = "localhost" then
+         return True;
       end if;
 
-      if Host'Length >= 7 then
-         if Host (Host'First .. Host'First + 6) = "192.168" or else
-            Host (Host'First .. Host'First + 6) = "172.16." or else
-            Host (Host'First .. Host'First + 6) = "172.17." or else
-            Host (Host'First .. Host'First + 6) = "172.18." or else
-            Host (Host'First .. Host'First + 6) = "172.19." or else
-            Host (Host'First .. Host'First + 6) = "172.20." or else
-            Host (Host'First .. Host'First + 6) = "172.21." or else
-            Host (Host'First .. Host'First + 6) = "172.22." or else
-            Host (Host'First .. Host'First + 6) = "172.23." or else
-            Host (Host'First .. Host'First + 6) = "172.24." or else
-            Host (Host'First .. Host'First + 6) = "172.25." or else
-            Host (Host'First .. Host'First + 6) = "172.26." or else
-            Host (Host'First .. Host'First + 6) = "172.27." or else
-            Host (Host'First .. Host'First + 6) = "172.28." or else
-            Host (Host'First .. Host'First + 6) = "172.29." or else
-            Host (Host'First .. Host'First + 6) = "172.30." or else
-            Host (Host'First .. Host'First + 6) = "172.31."
-         then
-            return True;
-         end if;
+      --  Check for common private prefixes
+      if Host'Length >= 3 then
+         declare
+            Prefix3 : constant String :=
+              Host (Host'First .. Host'First + 2);
+         begin
+            if Prefix3 = "10." or else Prefix3 = "127" then
+               return True;
+            end if;
+         end;
+      end if;
+
+      if Host'Length >= 8 then
+         declare
+            Prefix7 : constant String :=
+              Host (Host'First .. Host'First + 6);
+         begin
+            if Prefix7 = "192.168" or else
+               Prefix7 = "172.16." or else Prefix7 = "172.17." or else
+               Prefix7 = "172.18." or else Prefix7 = "172.19." or else
+               Prefix7 = "172.20." or else Prefix7 = "172.21." or else
+               Prefix7 = "172.22." or else Prefix7 = "172.23." or else
+               Prefix7 = "172.24." or else Prefix7 = "172.25." or else
+               Prefix7 = "172.26." or else Prefix7 = "172.27." or else
+               Prefix7 = "172.28." or else Prefix7 = "172.29." or else
+               Prefix7 = "172.30." or else Prefix7 = "172.31."
+            then
+               return True;
+            end if;
+         end;
       end if;
 
       return False;
    end Is_Private_IP;
 
    --  Check if URL has valid HTTP/HTTPS scheme
-   function Has_Valid_Scheme (Input : String) return Boolean is
+   function Has_Valid_Scheme (Input : String) return Boolean
+   with Pre => Input'Length >= 1 and then Input'Last < Integer'Last - 1
+   is
    begin
-      if Input'Length < 7 then  -- Minimum "http://"
+      if Input'Length < 7 then
          return False;
       end if;
 
-      if Input'Length >= 8 and then
-         Input (Input'First .. Input'First + 7) = "https://"
-      then
-         return True;
-      elsif Input'Length >= 7 and then
-         Input (Input'First .. Input'First + 6) = "http://"
-      then
-         return True;
-      else
-         return False;
+      if Input'Length >= 8 then
+         declare
+            Prefix8 : constant String :=
+              Input (Input'First .. Input'First + 7);
+         begin
+            if Prefix8 = "https://" then
+               return True;
+            end if;
+         end;
       end if;
+
+      declare
+         Prefix7 : constant String :=
+           Input (Input'First .. Input'First + 6);
+      begin
+         if Prefix7 = "http://" then
+            return True;
+         end if;
+      end;
+
+      return False;
    end Has_Valid_Scheme;
 
-   --  Check for credentials (user:pass@)
-   function Has_Credentials (Input : String) return Boolean is
+   --  Check for credentials (user:pass@) - simplified check
+   function Has_Credentials (Input : String) return Boolean
+   with Pre => Input'Length >= 1 and then
+               Input'First >= 1 and then
+               Input'Last < Integer'Last - 10
+   is
+      Found_At : Boolean := False;
    begin
+      --  Look for @ sign followed by checking for : before it
       for I in Input'Range loop
          if Input (I) = '@' then
-            --  Check if there's a colon before @
+            Found_At := True;
+            --  Check if there's a : before @
             for J in Input'First .. I - 1 loop
                if Input (J) = ':' then
-                  return True;
+                  --  Found : before @, but need to skip scheme ://
+                  if J >= Input'First + 5 then
+                     --  Check it's not the scheme separator
+                     if J > Input'First + 6 or else
+                        Input (Input'First .. Input'First + 3) /= "http"
+                     then
+                        return True;
+                     end if;
+                  end if;
                end if;
+               pragma Loop_Invariant (J >= Input'First);
             end loop;
          end if;
+         pragma Loop_Invariant (I >= Input'First);
       end loop;
+      pragma Unreferenced (Found_At);
       return False;
    end Has_Credentials;
 
    --  Extract host portion from URL
    procedure Extract_Host
-     (Input : String;
+     (Input      : String;
       Host_Start : out Natural;
-      Host_End : out Natural;
-      Valid : out Boolean)
+      Host_End   : out Natural;
+      Valid      : out Boolean)
+   with
+     Pre  => Input'Length >= 7 and then Input'Last < Integer'Last - 10,
+     Post => (if Valid then
+                Host_Start >= Input'First and then
+                Host_End <= Input'Last and then
+                Host_Start <= Host_End)
    is
-      Idx : Natural;
+      Scheme_End : Natural;
    begin
       Host_Start := 0;
       Host_End := 0;
       Valid := False;
 
-      --  Skip scheme
+      --  Determine scheme length
       if Input'Length >= 8 and then
          Input (Input'First .. Input'First + 7) = "https://"
       then
-         Idx := Input'First + 8;
-      elsif Input'Length >= 7 and then
-         Input (Input'First .. Input'First + 6) = "http://"
-      then
-         Idx := Input'First + 7;
+         Scheme_End := Input'First + 7;
+      elsif Input (Input'First .. Input'First + 6) = "http://" then
+         Scheme_End := Input'First + 6;
       else
          return;
       end if;
 
-      Host_Start := Idx;
+      --  Host starts after scheme
+      if Scheme_End >= Input'Last then
+         return;
+      end if;
+
+      Host_Start := Scheme_End + 1;
 
       --  Find end of host (first '/', '?', '#', or end of string)
-      while Idx <= Input'Last loop
-         if Input (Idx) = '/' or else
-            Input (Idx) = '?' or else
-            Input (Idx) = '#'
+      Host_End := Input'Last;
+      for I in Host_Start .. Input'Last loop
+         if Input (I) = '/' or else
+            Input (I) = '?' or else Input (I) = '#'
          then
-            Host_End := Idx - 1;
-            Valid := True;
-            return;
+            Host_End := I - 1;
+            exit;
          end if;
-         Idx := Idx + 1;
+         pragma Loop_Invariant (I >= Host_Start);
+         pragma Loop_Invariant (Host_End = Input'Last);
       end loop;
 
-      --  Host extends to end of string
-      Host_End := Input'Last;
-      Valid := True;
+      if Host_Start <= Host_End then
+         Valid := True;
+      end if;
    end Extract_Host;
 
-   function Canonicalize (Input : String) return Canonicalize_Result
-   is
+   function Canonicalize (Input : String) return Canonicalize_Result is
       Host_Start : Natural;
-      Host_End : Natural;
+      Host_End   : Natural;
       Host_Valid : Boolean;
-      Result : Canonicalize_Result;
+      Result     : Canonicalize_Result;
    begin
+      --  Initialize Result.URL to avoid uninitialized warnings
+      Result.URL := Empty_URL;
+
       --  Check length
       if Input'Length = 0 or else Input'Length > Max_URL_Length then
          Result.Status := Invalid_Length;
@@ -184,6 +226,12 @@ package body Core is
          return Result;
       end if;
 
+      --  Ensure minimum length for Extract_Host (implied by valid scheme)
+      if Input'Length < 7 then
+         Result.Status := Invalid_Scheme;
+         return Result;
+      end if;
+
       --  Extract and validate host
       Extract_Host (Input, Host_Start, Host_End, Host_Valid);
       if not Host_Valid or else Host_Start = 0 then
@@ -192,14 +240,21 @@ package body Core is
       end if;
 
       --  Check for private addresses
-      declare
-         Host : constant String := Input (Host_Start .. Host_End);
-      begin
-         if Is_Private_IP (Host) then
-            Result.Status := Private_Address;
-            return Result;
-         end if;
-      end;
+      if Host_End >= Host_Start and then
+         Host_End - Host_Start < Max_URL_Length
+      then
+         declare
+            Host : constant String := Input (Host_Start .. Host_End);
+         begin
+            if Is_Private_IP (Host) then
+               Result.Status := Private_Address;
+               return Result;
+            end if;
+         end;
+      else
+         Result.Status := Invalid_Host;
+         return Result;
+      end if;
 
       --  URL is valid - copy to output
       Result.URL.Data (1 .. Input'Length) := Input;
@@ -209,58 +264,70 @@ package body Core is
       return Result;
    end Canonicalize;
 
-   --  Simple HMAC-SHA256 placeholder (simplified for now)
-   --  In production, this would use a proper cryptographic library
-   function Compute_HMAC
+   --  Simple hash computation (placeholder for HMAC-SHA256)
+   function Compute_Hash
      (Message : String;
-      Key : Secret_Key)
+      Key     : Secret_Key)
      return String
+   with
+     Pre  => Message'Length >= 1 and then Message'Last < Integer'Last,
+     Post => Compute_Hash'Result'Length = 32 and then
+             Compute_Hash'Result'First = 1
    is
-      Result : String (1 .. 32);
-      Hash_Val : Unsigned_32;
+      Result   : String (1 .. 32) := (others => '0');
+      Hash_Val : Unsigned_32 := 0;
    begin
-      --  Simplified hash computation
-      Hash_Val := 0;
+      --  Simple hash computation (NOT cryptographically secure)
+      --  Production should use proper HMAC-SHA256
       for I in Message'Range loop
          Hash_Val := Hash_Val xor Unsigned_32 (Character'Pos (Message (I)));
          Hash_Val := Hash_Val * 31;
+         pragma Loop_Invariant (I >= Message'First);
       end loop;
 
       for I in Key'Range loop
          Hash_Val := Hash_Val xor Unsigned_32 (Character'Pos (Key (I)));
          Hash_Val := Hash_Val * 17;
+         pragma Loop_Invariant (I >= Key'First);
       end loop;
 
-      --  Convert to hex string
-      for I in Result'Range loop
+      --  Convert to character representation
+      for I in 1 .. 32 loop
          Result (I) := Character'Val (48 + Integer (Hash_Val mod 10));
          Hash_Val := Hash_Val / 10;
+         pragma Loop_Invariant (I >= 1);
       end loop;
 
       return Result;
-   end Compute_HMAC;
+   end Compute_Hash;
 
    function Make_Short_Code
      (URL    : Valid_URL;
       Secret : Secret_Key)
      return Short_Code
    is
-      URL_Str : constant String := To_String (URL);
-      Hash : constant String := Compute_HMAC (URL_Str, Secret);
-      Code : Short_Code;
+      URL_Str  : constant String := To_String (URL);
+      Code     : Short_Code := Empty_Code;
       Hash_Val : Unsigned_64 := 0;
    begin
-      --  Convert hash bytes to integer
-      for I in Hash'First .. Hash'First + 7 loop
-         Hash_Val := Hash_Val * 256;
-         Hash_Val := Hash_Val + Unsigned_64 (Character'Pos (Hash (I)));
-      end loop;
+      --  Compute hash and convert first 8 bytes to integer
+      declare
+         Hash : constant String := Compute_Hash (URL_Str, Secret);
+      begin
+         --  Hash is guaranteed to be (1..32) by Compute_Hash postcondition
+         for I in 1 .. 8 loop
+            Hash_Val := Hash_Val * 256;
+            Hash_Val := Hash_Val + Unsigned_64 (Character'Pos (Hash (I)));
+            pragma Loop_Invariant (I >= 1);
+         end loop;
+      end;
 
       --  Encode to Base62
-      for I in reverse Code.Data'Range loop
+      for I in reverse 1 .. Short_Code_Length loop
          Code.Data (I) := Base62_Alphabet
            (Natural (Hash_Val mod Base62_Size) + 1);
          Hash_Val := Hash_Val / Base62_Size;
+         pragma Loop_Invariant (I >= 1);
       end loop;
 
       return Code;
@@ -270,31 +337,56 @@ package body Core is
    function Is_HTTP_Or_HTTPS (URL : Valid_URL) return Boolean is
       URL_Str : constant String := To_String (URL);
    begin
-      return Has_Valid_Scheme (URL_Str);
+      if URL_Str'Length >= 8 and then
+         URL_Str (URL_Str'First .. URL_Str'First + 7) = "https://"
+      then
+         return True;
+      elsif URL_Str'Length >= 7 and then
+         URL_Str (URL_Str'First .. URL_Str'First + 6) = "http://"
+      then
+         return True;
+      else
+         return False;
+      end if;
    end Is_HTTP_Or_HTTPS;
 
    function Not_Private_Address (URL : Valid_URL) return Boolean is
-      URL_Str : constant String := To_String (URL);
-      Host_Start, Host_End : Natural;
+      URL_Str    : constant String := To_String (URL);
+      Host_Start : Natural;
+      Host_End   : Natural;
       Host_Valid : Boolean;
    begin
-      Extract_Host (URL_Str, Host_Start, Host_End, Host_Valid);
-      if not Host_Valid then
+      if URL_Str'Length < 7 then
          return False;
       end if;
 
-      return not Is_Private_IP (URL_Str (Host_Start .. Host_End));
+      Extract_Host (URL_Str, Host_Start, Host_End, Host_Valid);
+      if not Host_Valid or else Host_Start = 0 then
+         return False;
+      end if;
+
+      if Host_End >= Host_Start and then
+         Host_End - Host_Start < Max_URL_Length
+      then
+         return not Is_Private_IP (URL_Str (Host_Start .. Host_End));
+      else
+         return False;
+      end if;
    end Not_Private_Address;
 
    function No_Credentials (URL : Valid_URL) return Boolean is
       URL_Str : constant String := To_String (URL);
    begin
+      if URL_Str'Length < 7 then
+         return True;
+      end if;
       return not Has_Credentials (URL_Str);
    end No_Credentials;
 
    function Length (Code : Short_Code) return Natural is
+      pragma Unreferenced (Code);
    begin
-      return Code.Data'Length;
+      return Short_Code_Length;
    end Length;
 
    function To_String (Code : Short_Code) return String is

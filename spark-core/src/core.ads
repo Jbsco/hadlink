@@ -60,11 +60,13 @@ package Core with Pure is
    end record;
 
    --  Canonicalize a raw URL into a valid, normalized form
-   --  Pre: Input length is within bounds
+   --  Pre: Input length is within bounds and indices are reasonable
    --  Post: If Success, output is canonicalized and safe
    function Canonicalize (Input : String) return Canonicalize_Result
    with
-     Pre  => Input'Length <= Max_URL_Length,
+     Pre  => Input'Length <= Max_URL_Length and then
+             Input'First >= 1 and then
+             Input'Last < Integer'Last - 10,
      Post => (if Canonicalize'Result.Status = Success
               then Is_HTTP_Or_HTTPS (Canonicalize'Result.URL)
                 and then Not_Private_Address (Canonicalize'Result.URL)
@@ -84,9 +86,14 @@ package Core with Pure is
    function Is_HTTP_Or_HTTPS (URL : Valid_URL) return Boolean;
    function Not_Private_Address (URL : Valid_URL) return Boolean;
    function No_Credentials (URL : Valid_URL) return Boolean;
-   function Length (Code : Short_Code) return Natural;
-   function To_String (Code : Short_Code) return String;
-   function To_String (URL : Valid_URL) return String;
+   function Length (Code : Short_Code) return Natural
+   with Post => Length'Result = Short_Code_Length;
+   function To_String (Code : Short_Code) return String
+   with Post => To_String'Result'Length = Short_Code_Length;
+   function To_String (URL : Valid_URL) return String
+   with Post => To_String'Result'Length >= 1 and then
+                To_String'Result'Length <= Max_URL_Length and then
+                To_String'Result'First = 1;
 
 private
 
