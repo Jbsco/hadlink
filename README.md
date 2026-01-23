@@ -102,9 +102,7 @@ Most URL shorteners are designed for user-facing growth or marketing.
   - No private IPs
   - Maximum URL lengths
 
-See [THREAT_MODEL.md](THREAT_MODEL.md) for full details.
-
-```
+See [THREAT_MODEL.md](https://github.com/Jbsco/hadlink?tab=readme-ov-file#threat-model) for full details.
 
 ---
 
@@ -112,20 +110,20 @@ See [THREAT_MODEL.md](THREAT_MODEL.md) for full details.
 
 **Current Phase**: Phase 2.5 Complete → Phase 3
 
-[x] Project structure and documentation
-[x] Build system (redo + Stack + Alire)
-[x] Phase 1: Complete Haskell implementation
+- [x] Project structure and documentation
+- [x] Build system (redo + Stack + Alire)
+- [x] Phase 1: Complete Haskell implementation
   - Core modules: Types, Canonicalize, ShortCode, Store, API
   - Security: ProofOfWork, RateLimit
   - Executables: shorten/redirect daemon modes
   - Clean build with -Werror
-[x] Phase 2: SPARK core implementation
+- [x] Phase 2: SPARK core implementation
   - SPARK canonicalization (URL validation, scheme checks, private IP blocking)
   - SPARK short code generation (HMAC + Base62)
   - C-compatible FFI boundary (hadlink_canonicalize, hadlink_make_short_code)
   - Alire package with gnatprove dependency
   - Clean build, formal verification tooling operational
-[x] Phase 2.5: FFI integration into Haskell
+- [x] Phase 2.5: FFI integration into Haskell
   - [x] SPARK standalone library (libHadlink_Core.so) with encapsulated Ada runtime
   - [x] Haskell FFI module (SparkFFI.hs) with bindings
   - [x] Updated Canonicalize and ShortCode to use FFI (IO-based)
