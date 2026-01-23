@@ -59,6 +59,9 @@ library
     network-uri >= 2.6,
     aeson >= 2.0
   
+  -- Note: Using ld-options instead of extra-lib-dirs/extra-libraries
+  -- to avoid package registration errors with relative paths.
+  -- Cabal will warn about this, but it's intentional for FFI linking.
   ld-options:
     -L../spark-core/lib
     -lHadlink_Core
