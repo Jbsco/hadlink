@@ -255,8 +255,7 @@ Security properties are achieved through architecture and invariants rather than
 
 ### Cryptography
 
-- SHA-256
-- HMAC
+- HMAC-SHA256 via [SPARKNaCl](https://github.com/rod-chapman/SPARKNaCl)
 - No custom cryptographic algorithms
 
 ### Operational Guidance

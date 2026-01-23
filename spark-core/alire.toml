@@ -11,3 +11,9 @@ tags = []
 
 [[depends-on]]
 gnatprove = "^14.1.1"
+
+[[depends-on]]
+sparknacl = "^4.0.1"
+
+[gpr-set-externals]
+SPARKNACL_LIBRARY_TYPE = "static-pic"

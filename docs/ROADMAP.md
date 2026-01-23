@@ -53,7 +53,7 @@ Follow the migration plan: Haskell-only → SPARK extraction → frozen API.
 - [ ] Prove all properties (requires gnatprove)
 
 ### Milestone 2.2: SPARK Short Code Generation
-- [x] Implement HMAC-SHA256 in SPARK (simplified)
+- [x] Implement HMAC-SHA256 in SPARK (via SPARKNaCl)
 - [x] Implement Base62 encoding
 - [ ] Prove determinism (requires gnatprove)
 - [ ] Prove output length (requires gnatprove)

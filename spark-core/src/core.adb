@@ -18,6 +18,9 @@
 pragma SPARK_Mode (On);
 
 with Interfaces; use Interfaces;
+with SPARKNaCl;          use SPARKNaCl;
+with SPARKNaCl.MAC;      use SPARKNaCl.MAC;
+with SPARKNaCl.Hashing.SHA256;
 
 package body Core is
 
@@ -62,7 +65,9 @@ package body Core is
       Key     : Secret_Key)
      return String
    with
-     Pre  => Message'Length >= 1 and then Message'Last < Integer'Last,
+     Pre  => Message'Length >= 1 and then
+             Message'Length <= Max_URL_Length and then
+             Message'Last < Integer'Last,
      Post => Compute_Hash'Result'Length = 32 and then
              Compute_Hash'Result'First = 1;
 
@@ -286,33 +291,46 @@ package body Core is
       return Result;
    end Canonicalize;
 
-   --  Simple hash computation (placeholder for HMAC-SHA256)
+   --  HMAC-SHA256 using SPARKNaCl verified implementation
    function Compute_Hash
      (Message : String;
       Key     : Secret_Key)
      return String
    is
-      Result   : String (1 .. 32) := (others => '0');
-      Hash_Val : Unsigned_32 := 0;
+      --  Convert message String to SPARKNaCl Byte_Seq (0-indexed)
+      Msg_Len   : constant N32 := N32 (Message'Length);
+      Msg_Bytes : Byte_Seq (0 .. Msg_Len - 1) := (others => 0);
+
+      --  Convert key String to SPARKNaCl Byte_Seq (0-indexed)
+      Key_Len   : constant N32 := N32 (Key'Length);
+      Key_Bytes : Byte_Seq (0 .. Key_Len - 1) := (others => 0);
+
+      --  HMAC output (SHA256 = 32 bytes)
+      Output    : SPARKNaCl.Hashing.SHA256.Digest := (others => 0);
+
+      --  Result string
+      Result    : String (1 .. 32) := (others => Character'Val (0));
    begin
-      --  Simple hash computation (NOT cryptographically secure)
-      --  Production should use proper HMAC-SHA256
+      --  Convert message characters to bytes
       for I in Message'Range loop
-         Hash_Val := Hash_Val xor Unsigned_32 (Character'Pos (Message (I)));
-         Hash_Val := Hash_Val * 31;
+         Msg_Bytes (N32 (I - Message'First)) :=
+           Byte (Character'Pos (Message (I)));
          pragma Loop_Invariant (I >= Message'First);
       end loop;
 
+      --  Convert key characters to bytes
       for I in Key'Range loop
-         Hash_Val := Hash_Val xor Unsigned_32 (Character'Pos (Key (I)));
-         Hash_Val := Hash_Val * 17;
+         Key_Bytes (N32 (I - Key'First)) :=
+           Byte (Character'Pos (Key (I)));
          pragma Loop_Invariant (I >= Key'First);
       end loop;
 
-      --  Convert to character representation
+      --  Compute HMAC-SHA256
+      HMAC_SHA_256 (Output, Msg_Bytes, Key_Bytes);
+
+      --  Convert output bytes to result string
       for I in 1 .. 32 loop
-         Result (I) := Character'Val (48 + Integer (Hash_Val mod 10));
-         Hash_Val := Hash_Val / 10;
+         Result (I) := Character'Val (Integer (Output (N32 (I - 1))));
          pragma Loop_Invariant (I >= 1);
       end loop;
 
