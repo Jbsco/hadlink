@@ -57,11 +57,14 @@ package body Core_FFI is
       if Result.Status = Success then
          declare
             Output_Str : constant String := To_String (Result.URL);
-            C_Array : constant char_array :=
-               To_C (Output_Str, Append_Nul => True);
          begin
-            --  Copy to output buffer
-            Update (Output, 0, C_Array, Check => True);
+            --  Convert to char_array and copy (no checking)
+            declare
+               C_Array : constant char_array :=
+                 To_C (Output_Str, Append_Nul => True);
+            begin
+               Update (Output, 0, C_Array, Check => False);
+            end;
             Output_Len.all := Output_Str'Length;
          end;
       else
@@ -102,11 +105,14 @@ package body Core_FFI is
          Code : constant Short_Code :=
             Make_Short_Code (Canon_Result.URL, Key);
          Code_Str : constant String := To_String (Code);
-         C_Array : constant char_array :=
-            To_C (Code_Str, Append_Nul => True);
       begin
-         --  Copy to output buffer
-         Update (Output, 0, C_Array, Check => True);
+         --  Convert to char_array and copy (no checking)
+         declare
+            C_Array : constant char_array :=
+              To_C (Code_Str, Append_Nul => True);
+         begin
+            Update (Output, 0, C_Array, Check => False);
+         end;
       end;
 
       return 0;

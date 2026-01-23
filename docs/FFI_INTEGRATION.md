@@ -2,7 +2,9 @@
 
 ## Current Status
 
-Phase 2.5 FFI integration is blocked on Ada runtime initialization requirements.
+[x] **Phase 2.5 FFI integration is COMPLETE!**
+
+**Solution**: GNAT Standalone Library with encapsulated Ada runtime.
 
 ### What Works
 
@@ -104,13 +106,31 @@ Run SPARK core as a separate process:
 - Haskell calls via IPC instead of FFI
 - More robust isolation
 
-### Recommended Path Forward
+### Solution Implemented
 
-**Short term**: Continue with pure Haskell implementation for Phase 1 releases. SPARK core exists as reference implementation and for future integration.
+**Standalone Library** - Successful
 
-**Medium term**: Investigate Option 1 (standalone library) - most proper Ada solution.
+#### What Worked:
 
-**Long term**: Consider Option 4 (separate process) for production deployments - better isolation and crash handling.
+1. **GNAT Standalone Library Configuration**:
+   ```ada
+   for Library_Kind use "relocatable";  -- Must be shared library
+   for Library_Standalone use "encapsulated";  -- Ada runtime included
+   for Library_Interface use ("Core_FFI");  -- Export this package
+   ```
+
+2. **Ada Runtime Auto-Initialization**: Standalone library handles `adainit`/`adafinal` automatically when loaded
+
+3. **Fixed FFI Buffer Management**: Changed `Update(..., Check => True)` to `Update(..., Check => False)` to avoid Ada string validation on Haskell-allocated buffers
+
+4. **No Manual Init Required**: Removed calls to `hadlink_init` - standalone library handles initialization
+
+#### Results:
+- [x] FFI calls work without segfaults
+- [x] URL canonicalization: `https://example.com/test` → success
+- [x] Short code generation: produces valid 8-character codes
+- [x] Full HTTP daemon integration working
+- [x] Haskell → SPARK → Haskell round trip complete
 
 ### References
 

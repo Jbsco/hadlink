@@ -61,9 +61,7 @@ library
   
   ld-options:
     -L../spark-core/lib
-    -L/usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/adalib
     -lHadlink_Core
-    -lgnat_pic
 
 executable hadlink
   import: common-options

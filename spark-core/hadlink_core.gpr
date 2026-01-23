@@ -9,10 +9,12 @@ project Hadlink_Core is
    for Create_Missing_Dirs use "True";
    for Library_Dir use "lib";
 
-   type Library_Type_Type is ("relocatable", "static", "static-pic");
-   Library_Type : Library_Type_Type :=
-     external ("HADLINK_CORE_LIBRARY_TYPE", external ("LIBRARY_TYPE", "static-pic"));
-   for Library_Kind use Library_Type;
+   --  Must be relocatable (shared) for standalone encapsulated library
+   for Library_Kind use "relocatable";
+
+   --  Standalone library for FFI - handles Ada runtime init
+   for Library_Standalone use "encapsulated";
+   for Library_Interface use ("Core_FFI");
 
    package Compiler is
       for Default_Switches ("Ada") use Hadlink_Core_Config.Ada_Compiler_Switches;
