@@ -3,7 +3,6 @@ pragma SPARK_Mode (Off);
 
 with Interfaces.C; use Interfaces.C;
 with Interfaces.C.Strings; use Interfaces.C.Strings;
-with Interfaces.C.Pointers;
 
 package Core_FFI is
 
