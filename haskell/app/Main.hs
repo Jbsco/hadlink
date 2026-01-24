@@ -27,6 +27,7 @@ import Network.Wai.Handler.Warp (run)
 import API
 import Store
 import Types
+import RateLimit (newRateLimiter)
 import SparkFFI (initSpark)
 
 main :: IO ()
@@ -62,15 +63,19 @@ runShortenDaemon = do
 
     putStrLn $ "Starting shorten daemon on port " ++ show port
     putStrLn $ "Storage: " ++ storagePath
+    putStrLn $ "Rate limit: " ++ show (cfgRateLimitPerIP config) ++ " requests per " ++ show (cfgRateLimitWindow config) ++ "s"
 
     -- Initialize storage
     store <- openStore storagePath
     initializeStore store
 
+    -- Initialize rate limiter
+    limiter <- newRateLimiter config
+
     putStrLn "Ready to accept requests"
 
     -- Start HTTP server
-    run port (app config store)
+    run port (app config store limiter)
 
 -- | Run redirect daemon (resolution service)
 -- Fast, read-only, performs single lookup and redirect
@@ -95,10 +100,13 @@ runRedirectDaemon = do
           , cfgAPIKeys = []
           }
 
+    -- Initialize rate limiter (not used by redirect, but required by app signature)
+    limiter <- newRateLimiter config
+
     putStrLn "Ready to redirect"
 
     -- Start HTTP server (only GET requests handled)
-    run port (app config store)
+    run port (app config store limiter)
 
 -- | Helper to get environment variable with default
 getEnvWithDefault :: String -> String -> IO String

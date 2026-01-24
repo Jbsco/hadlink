@@ -117,9 +117,14 @@ The redirect path is optimized for speed (Warp + SQLite lookup). Create operatio
 ## Status
 
 **Version**: 0.1.0-dev
-**Phase**: FFI integration complete, moving to hardening
+**Phase**: Phase 2 complete, preparing for hardening
 
-Haskell handles HTTP, storage, and concurrency. SPARK provides formally-verifiable URL validation and short code generation via FFI. See [ROADMAP.md](docs/ROADMAP.md) for details.
+- SPARK core 100% verified (URL validation, short code generation)
+- 17 property tests via Hedgehog (canonicalization, short codes, negative cases, rate limiting)
+- Rate limiting integrated and tested (token bucket per IP)
+- FFI boundary stable
+
+See [ROADMAP.md](docs/ROADMAP.md) for details.
 
 ---
 
