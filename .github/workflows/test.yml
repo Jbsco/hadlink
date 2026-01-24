@@ -1,0 +1,82 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Cache Alire
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.config/alire
+            ~/.cache/alire
+            spark-core/alire
+          key: alire-${{ runner.os }}-${{ hashFiles('spark-core/alire.toml') }}
+          restore-keys: alire-${{ runner.os }}-
+
+      - name: Cache Stack
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.stack
+            haskell/.stack-work
+          key: stack-${{ runner.os }}-${{ hashFiles('haskell/stack.yaml', 'haskell/hadlink.cabal') }}
+          restore-keys: stack-${{ runner.os }}-
+
+      - name: Cache redo
+        uses: actions/cache@v4
+        with:
+          path: ~/redo
+          key: redo-${{ runner.os }}-v1
+
+      - name: Install Alire
+        uses: alire-project/setup-alire@v3
+
+      - name: Install GNAT toolchain
+        run: |
+          cd spark-core
+          alr toolchain --select gnat_native
+          alr build --stop-after=generation || true
+
+      - name: Install Stack
+        uses: haskell-actions/setup@v2
+        with:
+          enable-stack: true
+          stack-version: 'latest'
+
+      - name: Install redo
+        run: |
+          if [ ! -d ~/redo ]; then
+            git clone https://github.com/dinkelk/redo.git ~/redo
+            cd ~/redo && ./do
+          fi
+          echo "$HOME/redo/bin" >> $GITHUB_PATH
+
+      - name: Build project
+        run: redo -x -v all 2>&1 | tee build-output.log
+
+      - name: Run tests
+        id: test
+        run: |
+          redo -x -v test 2>&1 | tee test-output.log
+          echo "exit_code=${PIPESTATUS[0]}" >> $GITHUB_OUTPUT
+
+      - name: Upload test log
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-log
+          path: |
+            build-output.log
+            test-output.log
+          retention-days: 30
