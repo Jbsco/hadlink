@@ -91,7 +91,6 @@ jobs:
       - name: Integration tests
         id: integration
         run: |
-          set -e
           PASSED=0
           FAILED=0
 
@@ -102,10 +101,10 @@ jobs:
             local actual="$3"
             if [ "$expected" = "$actual" ]; then
               echo "PASS: $name"
-              ((PASSED++))
+              PASSED=$((PASSED + 1))
             else
               echo "FAIL: $name (expected: $expected, got: $actual)"
-              ((FAILED++))
+              FAILED=$((FAILED + 1))
             fi
           }
 
@@ -121,10 +120,10 @@ jobs:
           CODE=$(echo "$RESPONSE" | grep -o '"code":"[^"]*"' | cut -d'"' -f4)
           if [ -n "$CODE" ] && [ ${#CODE} -eq 8 ]; then
             echo "PASS: Create returns 8-char code: $CODE" | tee -a integration-output.log
-            ((PASSED++))
+            PASSED=$((PASSED + 1))
           else
             echo "FAIL: Create did not return valid code" | tee -a integration-output.log
-            ((FAILED++))
+            FAILED=$((FAILED + 1))
           fi
 
           # Test 2: Redirect returns 302
@@ -220,10 +219,10 @@ jobs:
           done
           if [ "$RATE_LIMITED" = "true" ]; then
             echo "PASS: Rate limiting triggered 429" | tee -a integration-output.log
-            ((PASSED++))
+            PASSED=$((PASSED + 1))
           else
             echo "FAIL: Rate limiting did not trigger 429" | tee -a integration-output.log
-            ((FAILED++))
+            FAILED=$((FAILED + 1))
           fi
 
           # Test 12: Redirects not rate limited (read path should be fast)
@@ -240,10 +239,10 @@ jobs:
           done
           if [ "$REDIRECT_OK" = "true" ]; then
             echo "PASS: Redirects work even when rate limited" | tee -a integration-output.log
-            ((PASSED++))
+            PASSED=$((PASSED + 1))
           else
             echo "FAIL: Redirects affected by rate limiting" | tee -a integration-output.log
-            ((FAILED++))
+            FAILED=$((FAILED + 1))
           fi
 
           # Summary
