@@ -8,11 +8,10 @@ Contributions are welcome. This document outlines expectations and workflow.
 
 Before contributing, understand the project values:
 
-1. **Boring is better than clever**
-2. **Proofs over tests** (for core logic)
-3. **Minimal surface area**
-4. **Infrastructure, not features**
-5. **Explicit non-goals matter**
+1. **Proofs over tests** (for core logic)
+2. **Minimal surface area**
+3. **Infrastructure, not features**
+4. **Explicit non-goals matter**
 
 ---
 
@@ -42,24 +41,24 @@ When in doubt, open an issue first.
 
 ### Prerequisites
 
-For Haskell development:
-```bash
-# Install Stack
-curl -sSL https://get.haskellstack.org/ | sh
+1. **redo** - Build system ([dinkelk/redo](https://github.com/dinkelk/redo))
+2. **Stack** - Haskell build tool
+3. **Alire** - Ada/SPARK package manager ([alire.ada.dev](https://alire.ada.dev))
 
-# Build project
-cd haskell
-stack build
-stack test
+### Building
+
+```bash
+redo all      # Build everything (SPARK + Haskell)
+redo test     # Run tests
+redo prove    # Run SPARK proofs
+redo style    # Check code style
 ```
 
-For SPARK development:
+For SPARK-only work:
 ```bash
-# Install GNAT Community Edition with SPARK
-# https://www.adacore.com/community
-
-cd spark-core/proof
-gnatprove -P core.gpr
+cd spark-core
+alr build
+alr exec -- gnatprove -P hadlink_core.gpr
 ```
 
 ---
@@ -88,7 +87,8 @@ with
 
 Run proofs with:
 ```bash
-gnatprove -P core.gpr --level=2
+redo prove
+# Or directly: alr exec -- gnatprove -P hadlink_core.gpr
 ```
 
 ---
@@ -165,9 +165,10 @@ Documentation changes should:
 
 ## Security
 
-Security issues should be reported privately. See `SECURITY.md` for details.
-
-Do not open public issues for security vulnerabilities.
+Security issues should be reported privately:
+- Do not open public issues for security vulnerabilities
+- Contact the maintainer directly
+- Provide clear reproduction steps
 
 ---
 

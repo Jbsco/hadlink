@@ -38,10 +38,7 @@ curl -sSL https://get.haskellstack.org/ | sh
 redo all
 ```
 
-This builds all Haskell components using Stack.
-```
-
-This builds all Haskell components.
+This builds the SPARK core library, then all Haskell components.
 
 ### Run tests
 

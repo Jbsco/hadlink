@@ -15,24 +15,39 @@ It is **not** a marketing or analytics platform. The system prioritizes:
 
 ---
 
-## Motivation
+## Example Use Cases
 
-Most URL shorteners are designed for user-facing growth or marketing.  
-**hadlink** treats URL shortening as **infrastructure**, not a toy:
+### CI Build Notifications
 
-- URLs are validated and canonicalized
-- Short codes are deterministic and non-enumerable
-- Redirects are fast, read-only, and predictable
+Jenkins (or any CI) posts build results to Slack/SMS. Long artifact URLs don't fit:
 
----
+```bash
+# In your Jenkinsfile or post-build script
+SHORT=$(curl -s -X POST http://hadlink.internal/api/create \
+  -H "X-API-Key: $HADLINK_KEY" \
+  -d "url=$BUILD_URL/artifact/report.html" | jq -r .short)
 
-## Intended Use
+# Send notification with short link
+curl -X POST "$SLACK_WEBHOOK" \
+  -d "{\"text\": \"Build #${BUILD_NUMBER} complete: $SHORT\"}"
+```
 
-- CI/CD build links
-- Monitoring alerts (Grafana, Uptime Kuma, etc.)
-- Artifact and log references
-- QR codes for physical infrastructure
-- Home labs and small deployments
+The same URL always produces the same short code. Re-running the build doesn't create duplicates.
+
+### QR Codes for Infrastructure
+
+Label physical equipment with stable, scannable links to dashboards or documentation:
+
+```bash
+# Generate short link for a rack's monitoring dashboard
+curl -X POST http://hadlink.internal/api/create \
+  -d "url=https://grafana.internal/d/xyz/rack-14-temps"
+
+# Response: {"short": "https://s.example.com/3Kf8mQp"}
+# Print QR code for this URL and affix to rack
+```
+
+The short code is deterministic—regenerating it for the same URL returns the same code, so labels remain valid even if the database is rebuilt from the URL list.
 
 ---
 
@@ -87,54 +102,16 @@ Most URL shorteners are designed for user-facing growth or marketing.
 
 - SPARK proves all **security-critical logic**
 - Haskell composes the system, handles IO and concurrency
-- Boundary is minimal and frozen
+- Boundary is minimal and frozen (see [FFI_INTEGRATION.md](docs/FFI_INTEGRATION.md))
 
 ---
 
-## Security Model
+## Status
 
-- All URLs are validated in SPARK
-- Short codes are deterministic and non-sequential
-- Redirects are read-only
-- Rate limiting and optional PoW mitigate abuse
-- SPARK proofs guarantee invariants such as:
-  - Only `http`/`https` URLs leave canonicalization
-  - No private IPs
-  - Maximum URL lengths
+**Version**: 0.1.0-dev
+**Phase**: FFI integration complete, moving to hardening
 
-See [THREAT_MODEL.md](https://github.com/Jbsco/hadlink?tab=readme-ov-file#threat-model) for full details.
-
----
-
-## Development Status
-
-**Current Phase**: Phase 2.5 Complete → Phase 3
-
-- [x] Project structure and documentation
-- [x] Build system (redo + Stack + Alire)
-- [x] Phase 1: Complete Haskell implementation
-  - Core modules: Types, Canonicalize, ShortCode, Store, API
-  - Security: ProofOfWork, RateLimit
-  - Executables: shorten/redirect daemon modes
-  - Clean build with -Werror
-- [x] Phase 2: SPARK core implementation
-  - SPARK canonicalization (URL validation, scheme checks, private IP blocking)
-  - SPARK short code generation (HMAC + Base62)
-  - C-compatible FFI boundary (hadlink_canonicalize, hadlink_make_short_code)
-  - Alire package with gnatprove dependency
-  - Clean build, formal verification tooling operational
-- [x] Phase 2.5: FFI integration into Haskell
-  - [x] SPARK standalone library (libHadlink_Core.so) with encapsulated Ada runtime
-  - [x] Haskell FFI module (SparkFFI.hs) with bindings
-  - [x] Updated Canonicalize and ShortCode to use FFI (IO-based)
-  - [x] Propagated IO changes through API and Main
-  - [x] Build system: SPARK builds before Haskell
-  - [x] FFI working: URL validation and short code generation via SPARK
-  - [x] Full integration test: HTTP daemon using SPARK core
-
-**Architecture**: Haskell handles HTTP/IO/storage, SPARK provides formally-verifiable security-critical logic via FFI.
-
-See [docs/ROADMAP.md](docs/ROADMAP.md) for detailed milestones.
+Haskell handles HTTP, storage, and concurrency. SPARK provides formally-verifiable URL validation and short code generation via FFI. See [ROADMAP.md](docs/ROADMAP.md) for details.
 
 ---
 
@@ -201,25 +178,6 @@ redo           # Show help
 redo clean     # Clean artifacts
 redo style     # Check SPARK and Haskell style
 redo generate-secret  # Generate deployment secret
-```
-
----
-
-## Quick Example
-
-```bash
-# Create a short link (API)
-curl -X POST https://hadlink.home/api/create \
-  -H "X-API-Key: ci" \
-  -d "url=https://example.com/very/long/path"
-
-# Response
-{"short": "https://hadlink.home/8F3kP2Q"}
-
-# Resolve (automatic redirect)
-curl -I https://hadlink.home/8F3kP2Q
-# HTTP/1.1 302 Found
-# Location: https://example.com/very/long/path
 ```
 
 ---

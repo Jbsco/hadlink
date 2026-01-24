@@ -31,13 +31,12 @@ hadlink is a URL shortener designed with embedded systems principles: determinis
 | Concern | Language | Rationale |
 |---------|----------|-----------|
 | URL validation & canonicalization | SPARK | Total functions, provable invariants |
-| Short-code generation | SPARK | No collisions beyond math bounds |
-| Storage format correctness | SPARK | Binary layout, bounds |
-| Redirect path logic | SPARK | Prove "no parsing, no allocation" |
+| Short-code generation | SPARK | Determinism, no collisions beyond math bounds |
 | API composition | Haskell | Expressive, concise |
+| Storage | Haskell | Flexibility, multiple backends |
+| Redirect path | Haskell | Simple lookup, read-only |
 | Concurrency & orchestration | Haskell | Lightweight threads, STM |
 | Property testing | Haskell | QuickCheck / Hedgehog |
-| Tooling & experimentation | Haskell | Faster iteration |
 
 ---
 
@@ -168,7 +167,7 @@ Breadth from Haskell, depth from SPARK.
 ### Supported Backends
 
 - SQLite (WAL mode)
-- LMDB
+- LMDB (planned)
 
 ---
 
@@ -206,19 +205,20 @@ By design:
 
 ## Migration Plan
 
-### Phase 1 — Haskell-only
+### Phase 1 — Haskell-only ✓
 - Implement everything in Haskell
 - Lock down invariants in docs
 - Write property tests
 
-### Phase 2 — SPARK extraction
-- Move canonicalization into SPARK
-- Replace Haskell implementation
-- Keep tests identical
+### Phase 2 — SPARK extraction ✓
+- Move canonicalization and short-code generation into SPARK
+- FFI integration (Haskell calls SPARK via C ABI)
+- SPARK proofs at 99% coverage
 
-### Phase 3 — Code generation
-- Move short-code generation into SPARK
+### Phase 3 — Hardening (current)
 - Freeze SPARK API
+- Full proof coverage
+- Production hardening
 - Tag v1.0
 
 ---

@@ -74,12 +74,12 @@ Follow the migration plan: Haskell-only → SPARK extraction → frozen API.
 - [ ] Property tests pass with SPARK backend
 
 ### Deliverables
-- [x] Proved SPARK core library
+- [x] Proved SPARK core library (currently 99%)
 - [x] FFI boundary (working)
 - [x] Haskell using SPARK via FFI
 - [ ] Test suite validates equivalence
 
-**Status**: Complete
+**Status**: Complete (one proof pending, possibly FFI-related)
 
 ---
 
@@ -159,10 +159,10 @@ The following will **not** be added to maintain scope:
 ## Current Status
 
 **Current Version**: v0.1.0-dev
-**Current Phase**: Phase 2.5 Complete → Phase 3
+**Current Phase**: Phase 2 Complete → Phase 3
 **Last Updated**: 2026-01-23
 
-**Achievement**: Phase 2.5 FFI integration is complete. Haskell successfully calls SPARK core for URL validation and short code generation. Security-critical operations are now formally-verifiable via SPARK proofs.
+**Achievement**: FFI integration is complete. Haskell successfully calls SPARK core for URL validation and short code generation. SPARK proofs at 99% coverage.
 
 ---
 
