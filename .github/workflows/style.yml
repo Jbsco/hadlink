@@ -24,15 +24,6 @@ jobs:
           key: alire-${{ runner.os }}-${{ hashFiles('spark-core/alire.toml') }}
           restore-keys: alire-${{ runner.os }}-
 
-      - name: Cache Stack
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.stack
-            haskell/.stack-work
-          key: stack-${{ runner.os }}-${{ hashFiles('haskell/stack.yaml', 'haskell/hadlink.cabal') }}
-          restore-keys: stack-${{ runner.os }}-
-
       - name: Cache redo
         uses: actions/cache@v4
         with:
@@ -48,14 +39,10 @@ jobs:
           alr toolchain --select gnat_native
           alr build --stop-after=generation || true
 
-      - name: Install Stack
-        uses: haskell-actions/setup@v2
-        with:
-          enable-stack: true
-          stack-version: 'latest'
-
       - name: Install HLint
-        run: stack install hlint --resolver lts-21.25
+        uses: haskell-actions/hlint-setup@v2
+        with:
+          version: '3.6.1'
 
       - name: Install redo
         run: |
