@@ -341,10 +341,10 @@ package body Core is
       Key_Bytes : Byte_Seq (0 .. Key_Len - 1) := (others => 0);
 
       --  HMAC output (SHA256 = 32 bytes)
-      Output    : SPARKNaCl.Hashing.SHA256.Digest := (others => 0);
+      Output    : SPARKNaCl.Hashing.SHA256.Digest;
 
       --  Result string
-      Result    : String (1 .. 32) := (others => Character'Val (0));
+      Result    : String (1 .. 32);
    begin
       --  Convert message characters to bytes
       for I in Message'Range loop
