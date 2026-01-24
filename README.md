@@ -17,6 +17,8 @@ It is **not** a marketing or analytics platform. The system prioritizes:
 
 ## Example Use Cases
 
+Examples use [curl](https://curl.se/) ([curl license](https://curl.se/docs/copyright.html)) for HTTP requests.
+
 ### CI Build Notifications
 
 Jenkins (or any CI) posts build results to Slack/SMS. Long artifact URLs don't fit:
@@ -51,13 +53,15 @@ The short code is deterministic—regenerating it for the same URL returns the s
 
 ---
 
-## Non-Goals
+## Why a URL Shortener?
 
-- Marketing analytics / tracking
-- User accounts or dashboards
-- Custom aliases
-- JavaScript redirects or previews
-- Link previews or metadata scraping
+A URL shortener is a small but realistic service where input validation, canonicalization, abuse resistance, and deterministic behavior matter. It is a lightweight field to build embedded-style rigor and formal methods without requiring hardware. Working on this provides an opportunity to work with thin language interop and formal verification tools.
+
+Beyond the technical implementation, this project organization is guided by:
+
+- **Scope management** - Maintaining explicit non-goals, resisting feature creep
+- **Invariant-based planning** - Defining what must always be true, then building toward a known ceiling
+- **Mature project organization** - Proper licensing, toolchain attribution, phased roadmaps, and documentation that respects users', reviewers', and contributors' time
 
 ---
 
@@ -104,6 +108,10 @@ The short code is deterministic—regenerating it for the same URL returns the s
 - Haskell composes the system, handles IO and concurrency
 - Boundary is minimal and frozen (see [FFI_INTEGRATION.md](docs/FFI_INTEGRATION.md))
 
+**Performance:**
+
+The redirect path is optimized for speed (Warp + SQLite lookup). Create operations include cryptographic validation and FFI overhead, which is acceptable for infrastructure use cases but not designed for high-volume marketing workloads.
+
 ---
 
 ## Status
@@ -119,14 +127,14 @@ Haskell handles HTTP, storage, and concurrency. SPARK provides formally-verifiab
 
 ### Prerequisites
 
-1. **redo** - Build system
+1. **[dinkelk/redo](https://github.com/dinkelk/redo)** - Build system (MIT), chosen for correct dependency tracking, minimal complexity, and a Haskell implementation that aligns with the project's toolchain.
    ```bash
    git clone https://github.com/dinkelk/redo.git
    cd redo && ./do
    export PATH=$PATH:$(pwd)/bin
    ```
 
-2. **Stack** - Haskell build tool
+2. **[Stack](https://github.com/commercialhaskell/stack)** - Haskell build tool (BSD-3-Clause)
    ```bash
    # On most systems
    curl -sSL https://get.haskellstack.org/ | sh
@@ -136,7 +144,7 @@ Haskell handles HTTP, storage, and concurrency. SPARK provides formally-verifiab
    # Ubuntu: sudo apt install haskell-stack
    ```
 
-3. **Alire** - Ada/SPARK package manager (for Phase 2 proofs)
+3. **[Alire](https://alire.ada.dev/)** - Ada/SPARK package manager (GPL-3.0)
    ```bash
    # Arch/Manjaro
    yay -S alire-bin
@@ -151,7 +159,7 @@ Haskell handles HTTP, storage, and concurrency. SPARK provides formally-verifiab
    alr exec -- gnatprove -P hadlink_core.gpr  # Run proofs
    ```
 
-4. **HLint** - Haskell style checker (optional)
+4. **[HLint](https://github.com/ndmitchell/hlint)** - Haskell style checker (BSD-3-Clause, optional)
    ```bash
    # Install via Stack (recommended - matches project GHC version)
    cd haskell
@@ -167,7 +175,7 @@ Haskell handles HTTP, storage, and concurrency. SPARK provides formally-verifiab
 cd hadlink
 redo all      # Build everything
 redo test     # Run tests
-redo prove    # SPARK proofs (Phase 2+)
+redo prove    # SPARK proofs
 redo style    # Check code style
 ```
 
@@ -246,7 +254,7 @@ For best security:
 ### Reporting a Vulnerability
 
 If you believe you have found a security issue:
-- **Do not** open a public issue
+- Do not open a public issue
 - Contact the maintainer privately
 - Provide clear reproduction steps, affected component, and expected vs actual behavior
 
@@ -302,6 +310,16 @@ Out of scope:
 - Storage is append-only
 
 Violating these invariants is considered a bug.
+
+### Non-Goals
+
+- Marketing analytics / tracking
+- User accounts or dashboards
+- Custom aliases
+- JavaScript redirects or previews
+- Link previews or metadata scraping
+
+Non-goals may be revisited if the threat model or invariants change. For example, stripping tracking parameters (`utm_*`, `fbclid`, etc.) conflicts with canonicalization invariants and proof boundaries; but could be reconsidered if a formally specified opt-in transformation layer were added outside the SPARK core.
 
 ---
 

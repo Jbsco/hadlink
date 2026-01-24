@@ -9,7 +9,9 @@ hadlink uses `redo` as its build system, which aligns with the project's embedde
 - No complex syntax or DSL
 - Scripts are just shell scripts
 - Minimal, auditable
-- Written in Haskell (like hadlink's integration layer)
+- Fast and reliable
+
+This project uses [dinkelk/redo](https://github.com/dinkelk/redo) (MIT), a Haskell implementation that is actively maintained and aligns with the project's toolchain.
 
 ## Prerequisites
 
@@ -203,16 +205,6 @@ stack test           # Test
 stack exec hadlink   # Run
 stack clean          # Clean
 ```
-
-## Why dinkelk/redo?
-
-This implementation:
-- Written in Haskell
-- Actively maintained
-- Bug fixes over other implementations
-- Fast and reliable
-- Clean, readable codebase
-- MIT licensed (see [LICENSES/MIT-redo.txt](/LICENSES/MIT-redo.txt))
 
 ## References
 
