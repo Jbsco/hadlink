@@ -15,8 +15,8 @@ fi
 echo "Running SPARK proofs..."
 cd spark-core
 
-# Run gnatprove
-alr exec -- gnatprove -P hadlink_core.gpr --level=2 --report=all
+# Run gnatprove on hadlink units only (skip SPARKNaCl dependency)
+alr exec -- gnatprove -P hadlink_core.gpr --level=2 --report=all -u core -u core_ffi
 EXIT_CODE=$?
 
 # Parse summary from output file
@@ -26,38 +26,23 @@ echo ""
 echo "=========================================="
 
 if [ -f "$SUMMARY_FILE" ]; then
-    # Extract Total line from summary
-    # Format: Total  2569  684 (27%)  1882 (73%)  .  3 (0%)
-    #         [name] [tot] [flow]     [proved]    [just] [unproved]
-    SUMMARY=$(grep "^Total" "$SUMMARY_FILE" | head -1)
+    # Check if any Core subprograms are "not proved"
+    CORE_UNPROVED=$(grep -E "^  Core\." "$SUMMARY_FILE" | grep "not proved" | wc -l)
 
-    if [ -n "$SUMMARY" ]; then
-        # Extract values - percentages appear as: flow%, proved%, unproved%
-        TOTAL=$(echo "$SUMMARY" | awk '{print $2}')
-        PERCENTAGES=($(echo "$SUMMARY" | grep -oP '\d+(?=%\))'))
-        PROVED_PCT="${PERCENTAGES[1]}"  # Second percentage is "proved"
-        UNPROVED=$(echo "$SUMMARY" | awk '{print $(NF-1)}')
+    # Count Core checks (sum of all "proved (N checks)" for Core.*)
+    CORE_CHECKS=$(grep -E "^  Core\." "$SUMMARY_FILE" | grep -oP "proved \(\K\d+" | awk '{sum+=$1} END {print sum}')
 
-        # Count actual pragma Assume in source code (we're in spark-core dir)
-        ASSUMES=$(grep -h "pragma Assume" src/*.adb 2>/dev/null | wc -l)
+    # Count pragma Assume in source code
+    ASSUMES=$(grep -h "pragma Assume" src/*.adb 2>/dev/null | wc -l)
 
-        # Check if unproved are only in dependencies (SPARKNaCl)
-        HADLINK_UNPROVED=$(grep -E "Core\.[A-Za-z_]+ at core\.(ads|adb).*not proved" "$SUMMARY_FILE" | wc -l)
-
-        if [ "$UNPROVED" = "0" ] || [ "$UNPROVED" = "." ]; then
-            echo "SPARK proofs: 100% verified ($TOTAL checks)"
-        elif [ "$HADLINK_UNPROVED" = "0" ]; then
-            echo "SPARK proofs: hadlink core 100% verified"
-            echo "  ($UNPROVED unproved in dependencies, $TOTAL total checks)"
-        else
-            echo "SPARK proofs: $PROVED_PCT% proved ($UNPROVED unproved of $TOTAL checks)"
-        fi
-
-        if [ "$ASSUMES" -gt 0 ]; then
-            echo "  ($ASSUMES pragma Assume statements for postconditions)"
-        fi
+    if [ "$CORE_UNPROVED" = "0" ]; then
+        echo "SPARK proofs: hadlink core 100% verified ($CORE_CHECKS checks)"
     else
-        echo "Could not parse gnatprove summary"
+        echo "SPARK proofs: hadlink core has $CORE_UNPROVED unproved subprograms"
+    fi
+
+    if [ "$ASSUMES" -gt 0 ]; then
+        echo "  ($ASSUMES pragma Assume statements for postconditions)"
     fi
 else
     echo "Summary file not found: $SUMMARY_FILE"

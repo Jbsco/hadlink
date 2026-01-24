@@ -164,7 +164,7 @@ The following will **not** be added to maintain scope:
 
 **Achievements**:
 - FFI integration complete: Haskell calls SPARK core for URL validation and short code generation
-- SPARK proofs at 100% for hadlink core (3 unproved checks in SPARKNaCl dependency)
+- SPARK proofs at 100% for hadlink core (91 checks, 3 pragma Assume for postconditions)
 - Comprehensive property test suite: 17 Hedgehog tests covering canonicalization, short codes, negative cases, and rate limiting
 - Rate limiting implemented and tested: Token bucket per IP with configurable limits
 
