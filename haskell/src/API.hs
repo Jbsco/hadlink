@@ -39,6 +39,7 @@ app config store req respond =
   case (requestMethod req, pathInfo req) of
     ("POST", ["api", "create"]) -> createHandler config store req respond
     ("GET", [code]) -> resolveHandler store code req respond
+    ("HEAD", [code]) -> resolveHandler store code req respond
     _ -> respond $ responseLBS status404 [("Content-Type", "text/plain")] "Not found"
 
 -- | Handle short link creation
