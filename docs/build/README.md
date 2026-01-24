@@ -100,6 +100,7 @@ All build logic lives in `.do` files:
 - `clean.do` - Clean artifacts
 - `default.do` - Show help
 - `generate-secret.do` - Generate deployment secret
+- `run-shorten.do` - Run shorten daemon locally
 
 ### Writing new build scripts
 

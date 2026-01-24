@@ -180,6 +180,24 @@ redo style     # Check SPARK and Haskell style
 redo generate-secret  # Generate deployment secret
 ```
 
+### Try It Locally
+
+```bash
+# Start the server (Ctrl+C to stop)
+redo run-shorten
+
+# In another terminal, create a short link
+curl -s -X POST http://localhost:8080/api/create \
+  -H "X-API-Key: test" \
+  -d "url=https://example.com/long/path"
+# {"code":"Bmx9c8bI","short":"http://localhost:8080/Bmx9c8bI"}
+
+# Follow the redirect
+curl -I http://localhost:8080/Bmx9c8bI
+# HTTP/1.1 302 Found
+# Location: https://example.com/long/path
+```
+
 ---
 
 ## Security

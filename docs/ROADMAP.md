@@ -26,8 +26,8 @@ Follow the migration plan: Haskell-only → SPARK extraction → frozen API.
 - [ ] Negative testing for invalid inputs
 
 ### Milestone 1.3: Abuse Mitigation
-- [x] Rate limiting (token bucket structure)
-- [x] Optional Proof-of-Work verification
+- [ ] Rate limiting (token bucket structure exists, not integrated)
+- [ ] Optional Proof-of-Work verification (implemented, not integrated)
 - [x] Bounded memory structures
 
 ### Deliverables
