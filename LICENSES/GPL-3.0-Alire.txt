@@ -1,0 +1,13 @@
+Alire - Ada Library Repository
+https://alire.ada.dev/
+https://github.com/alire-project/alire
+
+GPL-3.0 License
+
+Alire is licensed under the GNU General Public License v3.0.
+
+This is a build/development tool used by hadlink for Ada/SPARK package
+management. It is not distributed with or linked into hadlink binaries.
+
+For the full GPL-3.0 license text, see:
+https://www.gnu.org/licenses/gpl-3.0.html

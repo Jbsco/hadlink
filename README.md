@@ -229,7 +229,9 @@ Security properties are achieved through architecture and invariants rather than
 
 ### Cryptography
 
-- HMAC-SHA256 via [SPARKNaCl](https://github.com/rod-chapman/SPARKNaCl)
+Cryptographic primitives are provided by [SPARKNaCl](https://github.com/rod-chapman/SPARKNaCl) (BSD 3-Clause), chosen for compatibility with SPARK proofs, minimal attack surface, and permissive licensing compatible with AGPL-3.0.
+
+- HMAC-SHA256 for short code generation
 - No custom cryptographic algorithms
 
 ### Operational Guidance
@@ -315,7 +317,9 @@ Violating these invariants is considered a bug.
 
 ## License
 
-AGPL-3.0 - See [LICENSE.md](LICENSE.md)
+AGPL-3.0-or-later - See [LICENSE.md](LICENSE.md)
+
+Third-party licenses: [LICENSES/](LICENSES/)
 
 This program is free software: you can redistribute it and/or modify it under
 the terms of the GNU Affero General Public License as published by the Free

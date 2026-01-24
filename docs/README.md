@@ -258,6 +258,35 @@ Potential extensions:
 
 ---
 
+## Cryptography
+
+Cryptographic primitives are provided by [SPARKNaCl](https://github.com/rod-chapman/SPARKNaCl) (BSD 3-Clause), chosen for compatibility with SPARK proofs, minimal attack surface, and permissive licensing compatible with AGPL-3.0.
+
+See [LICENSES/BSD-3-Clause-SPARKNaCl.txt](/LICENSES/BSD-3-Clause-SPARKNaCl.txt) for the full license.
+
+---
+
+## Toolchain
+
+### Ada/SPARK (AdaCore)
+
+- **GNAT** - Ada compiler (GPL-3.0 with Runtime Library Exception)
+- **GNATprove** - SPARK formal verification (GPL-3.0)
+- **SPARK Runtime** - Runtime support for SPARK (GPL-3.0 with RLE)
+- **GNAT Standalone Library** - Encapsulated Ada runtime for FFI
+- **Alire** - Ada package manager (GPL-3.0)
+
+The SPARK core (`libHadlink_Core.so`) is built as a standalone library with the Ada runtime encapsulated, enabling clean FFI integration with Haskell.
+
+### Haskell
+
+- **GHC** - Glasgow Haskell Compiler (BSD-3-Clause)
+- **Stack** - Build tool and dependency manager (BSD-3-Clause)
+
+See [LICENSES/](/LICENSES/) for full license texts.
+
+---
+
 ## References
 
 This design draws from:

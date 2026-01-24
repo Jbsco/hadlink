@@ -212,6 +212,7 @@ This implementation:
 - Bug fixes over other implementations
 - Fast and reliable
 - Clean, readable codebase
+- MIT licensed (see [LICENSES/MIT-redo.txt](/LICENSES/MIT-redo.txt))
 
 ## References
 
