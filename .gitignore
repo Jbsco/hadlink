@@ -60,11 +60,12 @@ deploy/docker/data/
 
 # redo build system
 .redo/
-all
-test
-prove
-style
-clean
-build
-generate-secret
-haskell/build
+/all
+/test
+/prove
+/style
+/clean
+/build
+/generate-secret
+/haskell/build
+/spark-core/build

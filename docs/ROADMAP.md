@@ -32,7 +32,7 @@ Follow the migration plan: Haskell-only → SPARK extraction → frozen API.
 
 ### Deliverables
 - [x] Working Haskell implementation
-- [x] Comprehensive test suite (14 property tests, 100 iterations each)
+- [x] Comprehensive test suite (17 property tests, 100 iterations each)
 - [x] Documentation of invariants
 - [x] Initial deployment (Docker + systemd)
 
