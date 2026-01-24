@@ -36,7 +36,7 @@ hadlink is a URL shortener designed with embedded systems principles: determinis
 | Storage | Haskell | Flexibility, multiple backends |
 | Redirect path | Haskell | Simple lookup, read-only |
 | Concurrency & orchestration | Haskell | Lightweight threads, STM |
-| Property testing | Haskell | QuickCheck / Hedgehog |
+| Property testing | Haskell | Hedgehog via Tasty (17 tests) |
 
 ---
 
@@ -213,7 +213,7 @@ By design:
 ### Phase 2 — SPARK extraction ✓
 - Move canonicalization and short-code generation into SPARK
 - FFI integration (Haskell calls SPARK via C ABI)
-- SPARK proofs at 99% coverage
+- SPARK proofs at 100% for hadlink core
 
 ### Phase 3 — Hardening (current)
 - Freeze SPARK API

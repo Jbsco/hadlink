@@ -8,35 +8,41 @@
 
 ### What Works
 
-- SPARK core compiles to static library: `spark-core/lib/libHadlink_Core.a`
-- Library built with `-fPIC` (static-pic) for position-independent code
+- SPARK core compiles to shared library: `spark-core/lib/libHadlink_Core.so`
+- Library built as standalone encapsulated (Ada runtime included)
 - Exported C-compatible functions:
   - `hadlink_init` - Ada runtime initialization
   - `hadlink_final` - Ada runtime finalization
   - `hadlink_canonicalize` - URL validation and canonicalization
   - `hadlink_make_short_code` - Deterministic short code generation
 - Haskell FFI module `SparkFFI.hs` with proper bindings
-- Haskell code updated to use IO-based FFI calls
-- Build system configured:
-  - Links against libHadlink_Core.a
-  - Links against libgnat_pic.a (Ada runtime)
-  - Haskell executable compiles and links successfully
+- Haskell code uses IO-based FFI calls
+- Full HTTP daemon working with SPARK backend
+- 17 property tests pass (14 via FFI, 3 rate limiting)
 
-### The Problem
+### Important: Single-Threaded FFI
 
-The Haskell executable segfaults when calling any SPARK FFI function. This occurs even with `hadlink_init()` called at program startup.
+The Ada runtime is **not thread-safe** for concurrent FFI calls. Tests and applications must use single-threaded execution when calling SPARK functions:
+
+```bash
+# Tests run with single RTS thread
+hadlink-test +RTS -N1 -RTS
+```
+
+The test suite enforces this via `localOption (NumThreads 1)` in Tasty configuration.
+
+### Historical Context: The Problem (Solved)
+
+Initially, the Haskell executable segfaulted when calling SPARK FFI functions:
 
 ```
 $ ./test-ffi
-Initializing SPARK runtime...
-SPARK initialized
-Testing canonicalize...
 Segmentation fault (core dumped)
 ```
 
-### Root Cause
+### Root Cause (Historical)
 
-Ada libraries require complex runtime initialization that goes beyond a simple init function:
+Ada libraries require complex runtime initialization:
 
 1. **Elaboration Order**: Ada packages must be elaborated in dependency order
 2. **Secondary Stack**: Ada uses a secondary stack for dynamic-sized returns
@@ -154,19 +160,19 @@ Run SPARK core as a separate process:
 
 ### Testing
 
-Simple FFI test program: `haskell/test-ffi.hs`
+Property tests exercise the FFI:
 
-Compile:
 ```bash
-cd haskell
-stack exec ghc -- -isrc test-ffi.hs \
-  -L../spark-core/lib \
-  -L/usr/lib/gcc/x86_64-pc-linux-gnu/15.2.1/adalib \
-  -lHadlink_Core -lgnat_pic \
-  -o test-ffi
+redo test   # Runs 14 Hedgehog property tests via SPARK FFI
 ```
 
-Run:
+Test output:
+```
+All 17 tests passed (0.26s)
+```
+
+For manual FFI testing:
 ```bash
-./test-ffi  # Currently segfaults
+redo run-shorten  # Starts HTTP server with SPARK backend
+curl -X POST http://localhost:8080/api/create -d "url=https://example.com"
 ```

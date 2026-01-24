@@ -306,7 +306,8 @@ package body Core is
       --  paired functions to disagree on the same byte sequence.
 
       --  Is_HTTP_Or_HTTPS: Has_Valid_Scheme verified "http://" or "https://"
-      --  prefix on Input; Is_HTTP_Or_HTTPS checks same prefix on To_String(URL)
+      --  prefix on Input; Is_HTTP_Or_HTTPS checks the same prefix via
+      --  To_String(URL)
       pragma Assume (Is_HTTP_Or_HTTPS (Result.URL),
                      "Has_Valid_Scheme verified http(s):// prefix on Input; " &
                      "Result.URL contains verbatim copy of Input");
