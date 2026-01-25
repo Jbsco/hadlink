@@ -1,0 +1,278 @@
+name: Integration Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  integration:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Cache Alire
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.config/alire
+            ~/.cache/alire
+            spark-core/alire
+          key: alire-${{ runner.os }}-${{ hashFiles('spark-core/alire.toml') }}
+          restore-keys: alire-${{ runner.os }}-
+
+      - name: Cache Stack
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.stack
+            haskell/.stack-work
+          key: stack-${{ runner.os }}-${{ hashFiles('haskell/stack.yaml', 'haskell/hadlink.cabal') }}
+          restore-keys: stack-${{ runner.os }}-
+
+      - name: Cache redo
+        uses: actions/cache@v4
+        with:
+          path: ~/redo
+          key: redo-${{ runner.os }}-v1
+
+      - name: Install Alire
+        uses: alire-project/setup-alire@v3
+
+      - name: Install GNAT toolchain
+        run: |
+          cd spark-core
+          alr toolchain --select gnat_native
+          alr build --stop-after=generation || true
+
+      - name: Install Stack
+        uses: haskell-actions/setup@v2
+        with:
+          enable-stack: true
+          stack-version: 'latest'
+
+      - name: Install redo
+        run: |
+          if [ ! -d ~/redo ]; then
+            git clone https://github.com/dinkelk/redo.git ~/redo
+            cd ~/redo && ./do
+          fi
+          echo "$HOME/redo/bin" >> $GITHUB_PATH
+
+      - name: Clean and build
+        run: |
+          redo -x -v clean 2>&1 | tee clean-output.log
+          redo -x -v all 2>&1 | tee build-output.log
+
+      - name: Start server
+        run: |
+          # Start server in background
+          redo run-shorten &
+          SERVER_PID=$!
+          echo "SERVER_PID=$SERVER_PID" >> $GITHUB_ENV
+
+          # Wait for server to be ready
+          echo "Waiting for server to start..."
+          for i in {1..30}; do
+            if curl -s http://localhost:8080/ >/dev/null 2>&1; then
+              echo "Server is ready"
+              break
+            fi
+            if [ $i -eq 30 ]; then
+              echo "Server failed to start"
+              exit 1
+            fi
+            sleep 1
+          done
+
+      - name: Integration tests
+        id: integration
+        run: |
+          PASSED=0
+          FAILED=0
+
+          # Helper function - logs to file and updates counters
+          test_case() {
+            local name="$1"
+            local expected="$2"
+            local actual="$3"
+            if [ "$expected" = "$actual" ]; then
+              echo "PASS: $name" | tee -a integration-output.log
+              PASSED=$((PASSED + 1))
+            else
+              echo "FAIL: $name (expected: $expected, got: $actual)" | tee -a integration-output.log
+              FAILED=$((FAILED + 1))
+            fi
+          }
+
+          echo "=== Integration Test Suite ===" | tee integration-output.log
+          echo "" | tee -a integration-output.log
+
+          # Test 1: Create short link
+          echo "Test 1: Create short link" | tee -a integration-output.log
+          RESPONSE=$(curl -s -X POST http://localhost:8080/api/create \
+            -H "X-API-Key: test" \
+            -d "url=https://example.com/test/path")
+          echo "Response: $RESPONSE" | tee -a integration-output.log
+          CODE=$(echo "$RESPONSE" | grep -o '"code":"[^"]*"' | cut -d'"' -f4)
+          if [ -n "$CODE" ] && [ ${#CODE} -eq 8 ]; then
+            echo "PASS: Create returns 8-char code: $CODE" | tee -a integration-output.log
+            PASSED=$((PASSED + 1))
+          else
+            echo "FAIL: Create did not return valid code" | tee -a integration-output.log
+            FAILED=$((FAILED + 1))
+          fi
+
+          # Test 2: Redirect returns 302
+          echo "" | tee -a integration-output.log
+          echo "Test 2: Redirect returns 302" | tee -a integration-output.log
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/$CODE)
+          echo "HTTP Code: $HTTP_CODE" | tee -a integration-output.log
+          test_case "Redirect status" "302" "$HTTP_CODE"
+
+          # Test 3: Location header correct
+          echo "" | tee -a integration-output.log
+          echo "Test 3: Location header" | tee -a integration-output.log
+          LOCATION=$(curl -s -I http://localhost:8080/$CODE | grep -i "^location:" | tr -d '\r' | cut -d' ' -f2)
+          echo "Location: $LOCATION" | tee -a integration-output.log
+          test_case "Location header" "https://example.com/test/path" "$LOCATION"
+
+          # Test 4: Deterministic - same URL returns same code
+          echo "" | tee -a integration-output.log
+          echo "Test 4: Deterministic codes" | tee -a integration-output.log
+          RESPONSE2=$(curl -s -X POST http://localhost:8080/api/create \
+            -H "X-API-Key: test" \
+            -d "url=https://example.com/test/path")
+          CODE2=$(echo "$RESPONSE2" | grep -o '"code":"[^"]*"' | cut -d'"' -f4)
+          echo "Second code: $CODE2" | tee -a integration-output.log
+          test_case "Deterministic" "$CODE" "$CODE2"
+
+          # Test 5: Invalid code returns 404
+          echo "" | tee -a integration-output.log
+          echo "Test 5: Invalid code returns 404" | tee -a integration-output.log
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/ZZZZZZZZ)
+          echo "HTTP Code: $HTTP_CODE" | tee -a integration-output.log
+          test_case "Invalid code 404" "404" "$HTTP_CODE"
+
+          # Test 6: Missing URL parameter returns 400
+          echo "" | tee -a integration-output.log
+          echo "Test 6: Missing URL returns 400" | tee -a integration-output.log
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" -X POST http://localhost:8080/api/create \
+            -H "X-API-Key: test")
+          echo "HTTP Code: $HTTP_CODE" | tee -a integration-output.log
+          test_case "Missing URL 400" "400" "$HTTP_CODE"
+
+          # Test 7: Private IP rejected
+          echo "" | tee -a integration-output.log
+          echo "Test 7: Private IP rejected" | tee -a integration-output.log
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" -X POST http://localhost:8080/api/create \
+            -H "X-API-Key: test" \
+            -d "url=http://192.168.1.1/admin")
+          echo "HTTP Code: $HTTP_CODE" | tee -a integration-output.log
+          test_case "Private IP rejected" "400" "$HTTP_CODE"
+
+          # Test 8: Localhost rejected
+          echo "" | tee -a integration-output.log
+          echo "Test 8: Localhost rejected" | tee -a integration-output.log
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" -X POST http://localhost:8080/api/create \
+            -H "X-API-Key: test" \
+            -d "url=http://localhost/secret")
+          echo "HTTP Code: $HTTP_CODE" | tee -a integration-output.log
+          test_case "Localhost rejected" "400" "$HTTP_CODE"
+
+          # Test 9: Invalid scheme rejected
+          echo "" | tee -a integration-output.log
+          echo "Test 9: Invalid scheme rejected" | tee -a integration-output.log
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" -X POST http://localhost:8080/api/create \
+            -H "X-API-Key: test" \
+            -d "url=ftp://example.com/file")
+          echo "HTTP Code: $HTTP_CODE" | tee -a integration-output.log
+          test_case "FTP scheme rejected" "400" "$HTTP_CODE"
+
+          # Test 10: Credentials rejected
+          echo "" | tee -a integration-output.log
+          echo "Test 10: Credentials rejected" | tee -a integration-output.log
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" -X POST http://localhost:8080/api/create \
+            -H "X-API-Key: test" \
+            -d "url=https://user:pass@example.com/")
+          echo "HTTP Code: $HTTP_CODE" | tee -a integration-output.log
+          test_case "Credentials rejected" "400" "$HTTP_CODE"
+
+          # Test 11: Rate limiting - exhaust bucket (default: 10 requests per 60s)
+          # Note: We've already made several requests above, so we need fewer to hit the limit
+          echo "" | tee -a integration-output.log
+          echo "Test 11: Rate limiting enforced" | tee -a integration-output.log
+          echo "Exhausting rate limit bucket..." | tee -a integration-output.log
+          RATE_LIMITED=false
+          for i in $(seq 1 15); do
+            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" -X POST http://localhost:8080/api/create \
+              -H "X-API-Key: test" \
+              -d "url=https://example.com/ratelimit/$i")
+            if [ "$HTTP_CODE" = "429" ]; then
+              echo "Rate limited at request $i (429)" | tee -a integration-output.log
+              RATE_LIMITED=true
+              break
+            fi
+          done
+          if [ "$RATE_LIMITED" = "true" ]; then
+            echo "PASS: Rate limiting triggered 429" | tee -a integration-output.log
+            PASSED=$((PASSED + 1))
+          else
+            echo "FAIL: Rate limiting did not trigger 429" | tee -a integration-output.log
+            FAILED=$((FAILED + 1))
+          fi
+
+          # Test 12: Redirects not rate limited (read path should be fast)
+          echo "" | tee -a integration-output.log
+          echo "Test 12: Redirects not rate limited" | tee -a integration-output.log
+          REDIRECT_OK=true
+          for i in $(seq 1 5); do
+            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/$CODE)
+            if [ "$HTTP_CODE" != "302" ]; then
+              echo "Redirect failed at request $i (got $HTTP_CODE)" | tee -a integration-output.log
+              REDIRECT_OK=false
+              break
+            fi
+          done
+          if [ "$REDIRECT_OK" = "true" ]; then
+            echo "PASS: Redirects work even when rate limited" | tee -a integration-output.log
+            PASSED=$((PASSED + 1))
+          else
+            echo "FAIL: Redirects affected by rate limiting" | tee -a integration-output.log
+            FAILED=$((FAILED + 1))
+          fi
+
+          # Summary
+          echo "" | tee -a integration-output.log
+          echo "=== Summary ===" | tee -a integration-output.log
+          echo "Passed: $PASSED" | tee -a integration-output.log
+          echo "Failed: $FAILED" | tee -a integration-output.log
+
+          if [ $FAILED -gt 0 ]; then
+            echo "Integration tests failed" | tee -a integration-output.log
+            exit 1
+          fi
+          echo "All integration tests passed" | tee -a integration-output.log
+
+      - name: Stop server
+        if: always()
+        run: |
+          if [ -n "$SERVER_PID" ]; then
+            kill $SERVER_PID 2>/dev/null || true
+          fi
+          # Kill any remaining hadlink processes
+          pkill -f hadlink || true
+
+      - name: Upload integration log
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: integration-log
+          path: |
+            clean-output.log
+            build-output.log
+            integration-output.log
+          retention-days: 30

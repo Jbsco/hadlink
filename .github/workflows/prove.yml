@@ -1,0 +1,83 @@
+name: SPARK Proofs
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  prove:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Cache Alire
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.config/alire
+            ~/.cache/alire
+            ~/.local/share/alire
+            spark-core/alire
+          key: alire-prove-${{ runner.os }}-${{ hashFiles('spark-core/alire.toml') }}
+          restore-keys: alire-prove-${{ runner.os }}-
+
+      - name: Cache redo
+        uses: actions/cache@v4
+        with:
+          path: ~/redo
+          key: redo-${{ runner.os }}-v1
+
+      - name: Install Alire
+        uses: alire-project/setup-alire@v3
+
+      - name: Install GNAT toolchain and fetch dependencies
+        run: |
+          cd spark-core
+          alr toolchain --select gnat_native
+          alr build --stop-after=post-fetch || true
+
+      - name: Install redo
+        run: |
+          if [ ! -d ~/redo ]; then
+            git clone https://github.com/dinkelk/redo.git ~/redo
+            cd ~/redo && ./do
+          fi
+          echo "$HOME/redo/bin" >> $GITHUB_PATH
+
+      - name: Run SPARK proofs
+        id: prove
+        run: |
+          set -o pipefail
+          redo -x -v prove 2>&1 | tee prove-output.log
+          exit_code=${PIPESTATUS[0]}
+          echo "exit_code=$exit_code" >> $GITHUB_OUTPUT
+
+          # Check if hadlink core achieved 100%
+          if grep -q "hadlink core 100% verified" prove-output.log; then
+            echo "proof_status=pass" >> $GITHUB_OUTPUT
+          else
+            echo "proof_status=fail" >> $GITHUB_OUTPUT
+          fi
+
+          exit $exit_code
+
+      - name: Upload prove log
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: prove-log
+          path: prove-output.log
+          retention-days: 30
+
+      - name: Upload gnatprove.out on failure
+        uses: actions/upload-artifact@v4
+        if: failure() || steps.prove.outputs.proof_status == 'fail'
+        with:
+          name: gnatprove-output
+          path: spark-core/obj/development/gnatprove/gnatprove.out
+          retention-days: 30
+          if-no-files-found: warn
