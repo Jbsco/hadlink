@@ -329,6 +329,35 @@ Non-goals may be revisited if the threat model or invariants change. For example
 
 ---
 
+## Assurance Model
+
+**This project is not certified.**
+
+It is architected and developed with reference to the integrity objectives of DO-278A (Software Integrity Level 3), including integrity allocation, explicit assumptions, formal verification of integrity-critical logic, and traceability of requirements to verification artifacts.
+
+Formal certification is out of scope due to lack of operational deployment, certification authority, and independent verification resources. This is a single-developer project.
+
+### Integrity Allocation
+
+| Component | Integrity Level | Rationale |
+|-----------|-----------------|-----------|
+| SPARK Core | High | Integrity-critical: URL validation, short code generation. Formally verified. |
+| Haskell Service | Supporting | Network I/O, storage, rate limiting. Property-tested. |
+
+### What This Means
+
+The project is **not intended for safety-critical deployment**, but is structured similarly to DO-278A systems:
+
+- Formally proven core with explicit postconditions
+- Documented assumptions at proof boundaries (`pragma Assume`)
+- Lower-integrity service layer for I/O and orchestration
+- High-level requirements defined as invariants and non-goals
+- Verification evidence via GNATprove and Hedgehog property tests
+
+See [ROADMAP.md](docs/ROADMAP.md#do-278a-sil-3-mapping) for detailed objective mapping.
+
+---
+
 ## Documentation
 
 - **[Architecture](docs/)** - Design philosophy and dual-language approach

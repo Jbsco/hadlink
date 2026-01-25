@@ -287,9 +287,23 @@ See [LICENSES/](/LICENSES/) for full license texts.
 
 ---
 
+## Assurance Model
+
+This project references DO-278A (Software Integrity Level 3) objectives for:
+- Integrity allocation between high-integrity core and supporting service layer
+- Explicit assumption documentation at proof boundaries
+- Verification evidence via formal proofs and property tests
+
+See [ROADMAP.md](ROADMAP.md#do-278a-sil-3-mapping) for detailed objective mapping.
+
+**This project is not certified.** It is a single-developer project without certification authority or independent verification resources.
+
+---
+
 ## References
 
 This design draws from:
 - Embedded systems design principles
 - High-assurance software engineering
 - Infrastructure-first thinking
+- DO-278A integrity objectives (where applicable)

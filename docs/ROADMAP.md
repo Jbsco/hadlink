@@ -170,6 +170,48 @@ The following will **not** be added to maintain scope:
 
 ---
 
+## DO-278A SIL-3 Mapping
+
+This project is designed and developed following the principles of DO-278A Software Integrity Level 3, where applicable. This is a single-developer project without certification authority or independent verification resources.
+
+### Objective Status
+
+| DO-278A Objective | hadlink Status | Notes |
+|-------------------|----------------|-------|
+| **Integrity Allocation** | ✓ Complete | SPARK core (high-integrity) / Haskell service (supporting) |
+| **Deterministic Core Behavior** | ✓ Complete | SPARK proves termination, bounded execution, no exceptions |
+| **Input Validation** | ✓ Complete | URL validation with proven postconditions |
+| **Assumption Documentation** | ✓ Complete | `pragma Assume` with rationale comments at proof boundaries |
+| **Verification Evidence** | ✓ Complete | GNATprove output (91 checks), Hedgehog tests (17 properties) |
+| **High-Level Requirements** | ✓ Complete | Invariants, non-goals, security constraints, abuse mitigation |
+| **Traceability** | Partial | Requirements documented; formal traceability matrix out of scope |
+| **Defined Baselines** | Out of Scope | Git tags serve as informal baselines |
+| **Change Classification** | Out of Scope | Single-developer workflow |
+| **Independent QA** | Out of Scope | No independent verification resources |
+| **Tool Qualification** | Out of Scope | See [GNATprove qualification](https://docs.adacore.com/live/wave/spark2014/html/spark2014_ug/en/usage_scenarios.html#tool-qualification) |
+
+### Component Integrity Levels
+
+| Component | Level | Verification Method |
+|-----------|-------|---------------------|
+| `Core.Canonicalize` | High | Formal proof (GNATprove) |
+| `Core.Make_Short_Code` | High | Formal proof (GNATprove) |
+| `Core_FFI` | High | Thin wrapper, no logic |
+| Haskell API | Supporting | Property tests (Hedgehog) |
+| Rate Limiter | Supporting | Property tests (Hedgehog) |
+| Storage Layer | Supporting | Integration tests |
+
+### Explicitly Out of Scope
+
+- Formal certification process
+- DO-278A documentation package
+- Independent verification and validation (IV&V)
+- Certification authority engagement
+- Tool qualification evidence package
+- Requirements management system integration
+
+---
+
 ## Contributing
 
 See `CONTRIBUTING.md` for how to help with specific milestones.
