@@ -1,4 +1,5 @@
 # hadlink
+[![Build](https://github.com/Jbsco/hadlink/actions/workflows/build.yml/badge.svg)](https://github.com/Jbsco/hadlink/actions/workflows/build.yml)[![SPARK Proofs](https://github.com/Jbsco/hadlink/actions/workflows/prove.yml/badge.svg)](https://github.com/Jbsco/hadlink/actions/workflows/prove.yml)[![Integration Tests](https://github.com/Jbsco/hadlink/actions/workflows/integration.yml/badge.svg)](https://github.com/Jbsco/hadlink/actions/workflows/integration.yml)[![Tests](https://github.com/Jbsco/hadlink/actions/workflows/test.yml/badge.svg)](https://github.com/Jbsco/hadlink/actions/workflows/test.yml)[![Style Check](https://github.com/Jbsco/hadlink/actions/workflows/style.yml/badge.svg)](https://github.com/Jbsco/hadlink/actions/workflows/style.yml)
 
 **hadlink** is a self-hosted, high-assurance URL shortener designed for:
 
