@@ -29,9 +29,9 @@ cd "$(dirname "$0")/haskell"
 
 # Try to use hlint via stack, fallback to system hlint
 if stack exec -- which hlint &> /dev/null; then
-    stack exec -- hlint src/ app/ --color=never || true
+    stack exec -- hlint src/ app/ test/ --color=never || true
 elif command -v hlint &> /dev/null; then
-    hlint src/ app/ --color=never || true
+    hlint src/ app/ test/ --color=never || true
 else
     echo "Warning: hlint not found - install with 'stack install hlint'"
 fi

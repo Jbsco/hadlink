@@ -94,16 +94,16 @@ jobs:
           PASSED=0
           FAILED=0
 
-          # Helper function
+          # Helper function - logs to file and updates counters
           test_case() {
             local name="$1"
             local expected="$2"
             local actual="$3"
             if [ "$expected" = "$actual" ]; then
-              echo "PASS: $name"
+              echo "PASS: $name" | tee -a integration-output.log
               PASSED=$((PASSED + 1))
             else
-              echo "FAIL: $name (expected: $expected, got: $actual)"
+              echo "FAIL: $name (expected: $expected, got: $actual)" | tee -a integration-output.log
               FAILED=$((FAILED + 1))
             fi
           }
@@ -131,14 +131,14 @@ jobs:
           echo "Test 2: Redirect returns 302" | tee -a integration-output.log
           HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/$CODE)
           echo "HTTP Code: $HTTP_CODE" | tee -a integration-output.log
-          test_case "Redirect status" "302" "$HTTP_CODE" | tee -a integration-output.log
+          test_case "Redirect status" "302" "$HTTP_CODE"
 
           # Test 3: Location header correct
           echo "" | tee -a integration-output.log
           echo "Test 3: Location header" | tee -a integration-output.log
           LOCATION=$(curl -s -I http://localhost:8080/$CODE | grep -i "^location:" | tr -d '\r' | cut -d' ' -f2)
           echo "Location: $LOCATION" | tee -a integration-output.log
-          test_case "Location header" "https://example.com/test/path" "$LOCATION" | tee -a integration-output.log
+          test_case "Location header" "https://example.com/test/path" "$LOCATION"
 
           # Test 4: Deterministic - same URL returns same code
           echo "" | tee -a integration-output.log
@@ -148,14 +148,14 @@ jobs:
             -d "url=https://example.com/test/path")
           CODE2=$(echo "$RESPONSE2" | grep -o '"code":"[^"]*"' | cut -d'"' -f4)
           echo "Second code: $CODE2" | tee -a integration-output.log
-          test_case "Deterministic" "$CODE" "$CODE2" | tee -a integration-output.log
+          test_case "Deterministic" "$CODE" "$CODE2"
 
           # Test 5: Invalid code returns 404
           echo "" | tee -a integration-output.log
           echo "Test 5: Invalid code returns 404" | tee -a integration-output.log
           HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/ZZZZZZZZ)
           echo "HTTP Code: $HTTP_CODE" | tee -a integration-output.log
-          test_case "Invalid code 404" "404" "$HTTP_CODE" | tee -a integration-output.log
+          test_case "Invalid code 404" "404" "$HTTP_CODE"
 
           # Test 6: Missing URL parameter returns 400
           echo "" | tee -a integration-output.log
@@ -163,7 +163,7 @@ jobs:
           HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" -X POST http://localhost:8080/api/create \
             -H "X-API-Key: test")
           echo "HTTP Code: $HTTP_CODE" | tee -a integration-output.log
-          test_case "Missing URL 400" "400" "$HTTP_CODE" | tee -a integration-output.log
+          test_case "Missing URL 400" "400" "$HTTP_CODE"
 
           # Test 7: Private IP rejected
           echo "" | tee -a integration-output.log
@@ -172,7 +172,7 @@ jobs:
             -H "X-API-Key: test" \
             -d "url=http://192.168.1.1/admin")
           echo "HTTP Code: $HTTP_CODE" | tee -a integration-output.log
-          test_case "Private IP rejected" "400" "$HTTP_CODE" | tee -a integration-output.log
+          test_case "Private IP rejected" "400" "$HTTP_CODE"
 
           # Test 8: Localhost rejected
           echo "" | tee -a integration-output.log
@@ -181,7 +181,7 @@ jobs:
             -H "X-API-Key: test" \
             -d "url=http://localhost/secret")
           echo "HTTP Code: $HTTP_CODE" | tee -a integration-output.log
-          test_case "Localhost rejected" "400" "$HTTP_CODE" | tee -a integration-output.log
+          test_case "Localhost rejected" "400" "$HTTP_CODE"
 
           # Test 9: Invalid scheme rejected
           echo "" | tee -a integration-output.log
@@ -190,7 +190,7 @@ jobs:
             -H "X-API-Key: test" \
             -d "url=ftp://example.com/file")
           echo "HTTP Code: $HTTP_CODE" | tee -a integration-output.log
-          test_case "FTP scheme rejected" "400" "$HTTP_CODE" | tee -a integration-output.log
+          test_case "FTP scheme rejected" "400" "$HTTP_CODE"
 
           # Test 10: Credentials rejected
           echo "" | tee -a integration-output.log
@@ -199,7 +199,7 @@ jobs:
             -H "X-API-Key: test" \
             -d "url=https://user:pass@example.com/")
           echo "HTTP Code: $HTTP_CODE" | tee -a integration-output.log
-          test_case "Credentials rejected" "400" "$HTTP_CODE" | tee -a integration-output.log
+          test_case "Credentials rejected" "400" "$HTTP_CODE"
 
           # Test 11: Rate limiting - exhaust bucket (default: 10 requests per 60s)
           # Note: We've already made several requests above, so we need fewer to hit the limit

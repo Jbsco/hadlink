@@ -27,6 +27,7 @@ import qualified Hedgehog.Range as Range
 import qualified Data.Text as T
 import qualified Data.ByteString as BS
 import qualified Data.ByteString.Char8 as BS8
+import Data.Char (isDigit, isAsciiLower, isAsciiUpper)
 import Data.Either (isLeft, isRight)
 
 import Types
@@ -228,9 +229,7 @@ prop_base62_alphabet = property $ do
       ShortCode code <- evalIO $ generateShortCode secret validUrl
       assert $ T.all isBase62 code
   where
-    isBase62 c = (c >= '0' && c <= '9') ||
-                 (c >= 'a' && c <= 'z') ||
-                 (c >= 'A' && c <= 'Z')
+    isBase62 c = isDigit c || isAsciiLower c || isAsciiUpper c
 
 -- | Different URLs should (almost always) produce different short codes
 prop_different_urls :: Property
