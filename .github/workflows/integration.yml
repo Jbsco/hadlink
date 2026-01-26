@@ -13,6 +13,15 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Debug checked-out commit
+        run: |
+          echo "github.sha = ${{ github.sha }}"
+          git rev-parse HEAD
+          git log -1 --oneline
 
       - name: Cache Alire
         uses: actions/cache@v4
@@ -257,6 +266,96 @@ jobs:
           fi
           echo "All integration tests passed" | tee -a integration-output.log
 
+      - name: Stop server for PoW tests
+        run: |
+          pkill -f hadlink || true
+          sleep 1
+
+      - name: Start server with PoW enabled
+        run: |
+          # Start server with PoW: anonymous=4, authenticated=0 (bypass)
+          HADLINK_PORT=8080 HADLINK_POW_DIFFICULTY=4 HADLINK_POW_DIFFICULTY_AUTH=0 HADLINK_API_KEYS=test redo run-shorten &
+          POW_SERVER_PID=$!
+          echo "POW_SERVER_PID=$POW_SERVER_PID" >> $GITHUB_ENV
+
+          # Wait for server to be ready
+          echo "Waiting for PoW-enabled server to start..."
+          for i in {1..30}; do
+            if curl -s http://localhost:8080/ >/dev/null 2>&1; then
+              echo "Server is ready"
+              break
+            fi
+            if [ $i -eq 30 ]; then
+              echo "Server failed to start"
+              exit 1
+            fi
+            sleep 1
+          done
+
+      - name: PoW integration tests
+        id: pow_integration
+        run: |
+          PASSED=0
+          FAILED=0
+
+          echo "=== Proof-of-Work Integration Tests ===" | tee pow-integration-output.log
+          echo "" | tee -a pow-integration-output.log
+
+          # Test 13: Request without nonce fails when PoW enabled
+          echo "Test 13: Missing nonce rejected when PoW enabled" | tee -a pow-integration-output.log
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" -X POST http://localhost:8080/api/create \
+            -d "url=https://example.com/pow-test")
+          echo "HTTP Code: $HTTP_CODE" | tee -a pow-integration-output.log
+          if [ "$HTTP_CODE" = "400" ]; then
+            echo "PASS: Missing nonce rejected with 400" | tee -a pow-integration-output.log
+            PASSED=$((PASSED + 1))
+          else
+            echo "FAIL: Expected 400 for missing nonce, got $HTTP_CODE" | tee -a pow-integration-output.log
+            FAILED=$((FAILED + 1))
+          fi
+
+          # Test 14: Request with invalid nonce fails
+          echo "" | tee -a pow-integration-output.log
+          echo "Test 14: Invalid nonce rejected" | tee -a pow-integration-output.log
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" -X POST http://localhost:8080/api/create \
+            -d "url=https://example.com/pow-test&nonce=invalidnonce")
+          echo "HTTP Code: $HTTP_CODE" | tee -a pow-integration-output.log
+          if [ "$HTTP_CODE" = "400" ]; then
+            echo "PASS: Invalid nonce rejected with 400" | tee -a pow-integration-output.log
+            PASSED=$((PASSED + 1))
+          else
+            echo "FAIL: Expected 400 for invalid nonce, got $HTTP_CODE" | tee -a pow-integration-output.log
+            FAILED=$((FAILED + 1))
+          fi
+
+          # Test 15: API key bypasses PoW requirement (DIFFICULTY_AUTH=0)
+          echo "" | tee -a pow-integration-output.log
+          echo "Test 15: API key bypasses PoW (auth difficulty=0)" | tee -a pow-integration-output.log
+          RESPONSE=$(curl -s -X POST http://localhost:8080/api/create \
+            -H "X-API-Key: test" \
+            -d "url=https://example.com/api-key-bypass")
+          echo "Response: $RESPONSE" | tee -a pow-integration-output.log
+          CODE=$(echo "$RESPONSE" | grep -o '"code":"[^"]*"' | cut -d'"' -f4)
+          if [ -n "$CODE" ] && [ ${#CODE} -eq 8 ]; then
+            echo "PASS: API key bypasses PoW, got code: $CODE" | tee -a pow-integration-output.log
+            PASSED=$((PASSED + 1))
+          else
+            echo "FAIL: API key should bypass PoW" | tee -a pow-integration-output.log
+            FAILED=$((FAILED + 1))
+          fi
+
+          # Summary
+          echo "" | tee -a pow-integration-output.log
+          echo "=== PoW Summary ===" | tee -a pow-integration-output.log
+          echo "Passed: $PASSED" | tee -a pow-integration-output.log
+          echo "Failed: $FAILED" | tee -a pow-integration-output.log
+
+          if [ $FAILED -gt 0 ]; then
+            echo "PoW integration tests failed" | tee -a pow-integration-output.log
+            exit 1
+          fi
+          echo "All PoW integration tests passed" | tee -a pow-integration-output.log
+
       - name: Stop server
         if: always()
         run: |
@@ -275,4 +374,5 @@ jobs:
             clean-output.log
             build-output.log
             integration-output.log
+            pow-integration-output.log
           retention-days: 30

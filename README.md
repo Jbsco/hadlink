@@ -121,7 +121,7 @@ The redirect path is optimized for speed (Warp + SQLite lookup). Create operatio
 **Phase**: Phase 2 complete, preparing for hardening
 
 - SPARK core 100% verified (URL validation, short code generation)
-- 17 property tests via Hedgehog (canonicalization, short codes, negative cases, rate limiting)
+- 24 property tests via Hedgehog (canonicalization, short codes, negative cases, rate limiting, proof-of-work)
 - Rate limiting integrated and tested (token bucket per IP)
 - FFI boundary stable
 
@@ -256,6 +256,51 @@ For best security:
 - Run services with least privilege
 - Use read-only filesystems where possible
 - Monitor logs for abnormal creation rates
+
+### Proof-of-Work
+
+Optional proof-of-work mitigates spam by requiring clients to compute a valid nonce before creating short links. PoW is disabled by default.
+
+**Security model:**
+- Anonymous requests require proof-of-work (when enabled)
+- Authenticated API clients may have reduced or bypassed PoW, but are subject to rate limits, revocation, and behavioral constraints
+
+**Configuration:**
+```bash
+# Difficulty = number of leading zero bits required in SHA256(url || nonce)
+# Higher values = more computation required (each +1 doubles average work)
+
+# Anonymous request difficulty (0 = disabled)
+export HADLINK_POW_DIFFICULTY=8
+
+# Authenticated request difficulty (0 = bypass, or set lower for defense-in-depth)
+export HADLINK_POW_DIFFICULTY_AUTH=2
+
+# API keys (comma-separated)
+export HADLINK_API_KEYS=ci-system-key,monitoring-key
+```
+
+**Example configurations:**
+| Scenario | `DIFFICULTY` | `DIFFICULTY_AUTH` | Effect |
+|----------|--------------|-------------------|--------|
+| PoW disabled | 0 | 0 | No PoW for anyone |
+| Anonymous only | 8 | 0 | Anonymous clients work, API keys bypass |
+| Defense-in-depth | 8 | 2 | Everyone works, API keys work less |
+| High security | 12 | 4 | Strong protection for both |
+
+**Client usage:**
+```bash
+# Anonymous: must find nonce where SHA256(canonical_url || nonce) has N leading zero bits
+curl -X POST http://hadlink.internal/api/create \
+  -d "url=https://example.com/path&nonce=<valid-nonce>"
+
+# Authenticated: uses reduced difficulty (or bypasses if DIFFICULTY_AUTH=0)
+curl -X POST http://hadlink.internal/api/create \
+  -H "X-API-Key: ci-system-key" \
+  -d "url=https://example.com/path&nonce=<valid-nonce>"
+```
+
+PoW is verified against the canonicalized URL. Since hadlink's canonicalization is minimal (scheme/host preserved exactly), clients can typically use the URL as-is.
 
 ### Reporting a Vulnerability
 

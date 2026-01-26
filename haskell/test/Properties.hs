@@ -35,6 +35,8 @@ import Canonicalize (canonicalize)
 import ShortCode (generateShortCode)
 import SparkFFI (initSpark, finalizeSpark)
 import RateLimit (newRateLimiter, checkLimit)
+import ProofOfWork (verifyPoW, leadingZeroBits)
+import API (selectDifficulty)
 
 import Control.Exception (bracket)
 import Test.Tasty.Runners (NumThreads(..))
@@ -51,6 +53,8 @@ tests = testGroup "hadlink Properties"
   , roundTripTests
   , negativeTests
   , rateLimitTests
+  , proofOfWorkTests
+  , effectiveDifficultyTests
   ]
 
 --------------------------------------------------------------------------------
@@ -360,6 +364,7 @@ testConfig :: Int -> Int -> Config
 testConfig limit window = Config
   { cfgSecret = "testsecrettestsecrettestsecrett"  -- 32 bytes
   , cfgPowDifficulty = Difficulty 0
+  , cfgPowDifficultyAuth = Difficulty 0
   , cfgRateLimitPerIP = limit
   , cfgRateLimitWindow = window
   , cfgStoragePath = ":memory:"
@@ -407,3 +412,144 @@ prop_separate_clients = property $ do
 
   assert $ not result1  -- client1 rejected
   assert result2        -- client2 allowed
+
+--------------------------------------------------------------------------------
+-- Proof of Work Tests
+--------------------------------------------------------------------------------
+
+proofOfWorkTests :: TestTree
+proofOfWorkTests = testGroup "Proof of Work"
+  [ testProperty "leadingZeroBits counts correctly" prop_leading_zero_bits
+  , testProperty "difficulty 0 always passes" prop_pow_disabled
+  , testProperty "verification is deterministic" prop_pow_deterministic
+  , testProperty "valid proof passes" prop_pow_valid_proof
+  ]
+
+-- | Generate a random nonce
+genNonce :: Gen Nonce
+genNonce = Nonce <$> Gen.bytes (Range.linear 8 32)
+
+-- | leadingZeroBits should correctly count leading zeros
+prop_leading_zero_bits :: Property
+prop_leading_zero_bits = property $ do
+  -- Test known values
+  -- 0x00 = 8 leading zeros
+  assert $ leadingZeroBits (BS.pack [0x00]) == 8
+  -- 0x00 0x00 = 16 leading zeros
+  assert $ leadingZeroBits (BS.pack [0x00, 0x00]) == 16
+  -- 0x80 = 0 leading zeros (bit 7 is set)
+  assert $ leadingZeroBits (BS.pack [0x80]) == 0
+  -- 0x40 = 1 leading zero (bit 6 is set)
+  assert $ leadingZeroBits (BS.pack [0x40]) == 1
+  -- 0x01 = 7 leading zeros
+  assert $ leadingZeroBits (BS.pack [0x01]) == 7
+  -- 0x00 0x80 = 8 leading zeros (first byte all zeros, second has bit 7 set)
+  assert $ leadingZeroBits (BS.pack [0x00, 0x80]) == 8
+  -- Empty bytestring = 0 leading zeros
+  assert $ leadingZeroBits BS.empty == 0
+
+-- | When difficulty is 0, PoW is disabled and always passes
+prop_pow_disabled :: Property
+prop_pow_disabled = property $ do
+  url <- forAll genValidHttpURL
+  nonce <- forAll genNonce
+
+  canonResult <- evalIO $ canonicalize (RawURL url)
+  case canonResult of
+    Left _ -> success
+    Right validUrl -> do
+      -- Difficulty 0 should always pass regardless of nonce
+      let result = verifyPoW (Difficulty 0) validUrl nonce
+      assert result
+
+-- | PoW verification should be deterministic
+prop_pow_deterministic :: Property
+prop_pow_deterministic = property $ do
+  url <- forAll genValidHttpURL
+  nonce <- forAll genNonce
+  powDiff <- forAll $ Difficulty <$> Gen.int (Range.linear 0 8)
+
+  canonResult <- evalIO $ canonicalize (RawURL url)
+  case canonResult of
+    Left _ -> success
+    Right validUrl -> do
+      -- Same inputs should produce same result
+      let result1 = verifyPoW powDiff validUrl nonce
+          result2 = verifyPoW powDiff validUrl nonce
+      result1 === result2
+
+-- | A valid proof should pass verification
+-- We test by finding a nonce that satisfies low difficulty (1-4 bits)
+prop_pow_valid_proof :: Property
+prop_pow_valid_proof = property $ do
+  url <- forAll genValidHttpURL
+  -- Use low difficulty to make finding valid nonce feasible
+  powDiff <- forAll $ Difficulty <$> Gen.int (Range.linear 1 4)
+
+  canonResult <- evalIO $ canonicalize (RawURL url)
+  case canonResult of
+    Left _ -> success
+    Right validUrl -> do
+      -- Try random nonces until we find one that works (or give up)
+      nonces <- forAll $ Gen.list (Range.singleton 100) genNonce
+      let validNonces = filter (verifyPoW powDiff validUrl) nonces
+      -- With difficulty 1-4 and 100 attempts, we should find at least one
+      -- Probability of all 100 failing at difficulty 4 is (15/16)^100 ≈ 0.001
+      -- At difficulty 1, it's (1/2)^100 ≈ 0
+      assert $ not (null validNonces)
+
+--------------------------------------------------------------------------------
+-- Effective Difficulty Tests
+--------------------------------------------------------------------------------
+
+effectiveDifficultyTests :: TestTree
+effectiveDifficultyTests = testGroup "Effective Difficulty Selection"
+  [ testProperty "anonymous requests use cfgPowDifficulty" prop_anon_uses_pow_difficulty
+  , testProperty "valid API key uses cfgPowDifficultyAuth" prop_auth_uses_auth_difficulty
+  , testProperty "invalid API key uses cfgPowDifficulty" prop_invalid_key_uses_anon_difficulty
+  ]
+
+-- | Create a test config with specified PoW difficulties
+testPowConfig :: Int -> Int -> [T.Text] -> Config
+testPowConfig anonDiff authDiff keys = Config
+  { cfgSecret = "testsecrettestsecrettestsecrett"  -- 32 bytes
+  , cfgPowDifficulty = Difficulty anonDiff
+  , cfgPowDifficultyAuth = Difficulty authDiff
+  , cfgRateLimitPerIP = 10
+  , cfgRateLimitWindow = 60
+  , cfgStoragePath = ":memory:"
+  , cfgAPIKeys = map APIKey keys
+  }
+
+-- | Anonymous requests (no API key) should use cfgPowDifficulty
+prop_anon_uses_pow_difficulty :: Property
+prop_anon_uses_pow_difficulty = property $ do
+  anonDiff <- forAll $ Gen.int (Range.linear 0 16)
+  authDiff <- forAll $ Gen.int (Range.linear 0 16)
+
+  let config = testPowConfig anonDiff authDiff ["valid-key"]
+      result = selectDifficulty config Nothing
+
+  result === anonDiff
+
+-- | Requests with valid API key should use cfgPowDifficultyAuth
+prop_auth_uses_auth_difficulty :: Property
+prop_auth_uses_auth_difficulty = property $ do
+  anonDiff <- forAll $ Gen.int (Range.linear 0 16)
+  authDiff <- forAll $ Gen.int (Range.linear 0 16)
+
+  let config = testPowConfig anonDiff authDiff ["valid-key", "another-key"]
+      result = selectDifficulty config (Just (APIKey "valid-key"))
+
+  result === authDiff
+
+-- | Requests with invalid API key should use cfgPowDifficulty (treated as anonymous)
+prop_invalid_key_uses_anon_difficulty :: Property
+prop_invalid_key_uses_anon_difficulty = property $ do
+  anonDiff <- forAll $ Gen.int (Range.linear 0 16)
+  authDiff <- forAll $ Gen.int (Range.linear 0 16)
+
+  let config = testPowConfig anonDiff authDiff ["valid-key"]
+      result = selectDifficulty config (Just (APIKey "wrong-key"))
+
+  result === anonDiff

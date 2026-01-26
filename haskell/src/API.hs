@@ -20,6 +20,7 @@ module API
   ( app
   , createHandler
   , resolveHandler
+  , selectDifficulty
   ) where
 
 import Types
@@ -27,6 +28,7 @@ import Canonicalize (canonicalize)
 import ShortCode (generateShortCode)
 import Store
 import RateLimit (RateLimiter, checkLimit)
+import ProofOfWork (verifyPoW)
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as TE
 import qualified Data.ByteString as BS
@@ -74,21 +76,60 @@ handleCreate config store req respond = do
       case canonResult of
         Left err -> respond $ errorResponse status400 (validationErrorMessage err)
         Right validUrl -> do
-          -- Generate short code (IO operation via SPARK FFI)
-          shortCode <- generateShortCode (cfgSecret config) validUrl
+          -- Determine PoW difficulty based on authentication status
+          let effectiveDifficulty = getEffectiveDifficulty config req
+          if effectiveDifficulty == 0
+            then
+              -- PoW disabled for this request
+              createShortLink config store validUrl respond
+            else
+              -- PoW required - verify nonce
+              case lookup "nonce" params of
+                Nothing -> respond $ errorResponse status400 "Missing 'nonce' parameter (proof-of-work required)"
+                Just Nothing -> respond $ errorResponse status400 "Empty 'nonce' parameter"
+                Just (Just nonceBytes) -> do
+                  let nonce = Nonce nonceBytes
+                  if verifyPoW (Difficulty effectiveDifficulty) validUrl nonce
+                    then createShortLink config store validUrl respond
+                    else respond $ errorResponse status400 "Proof-of-work verification failed"
 
-          -- Store mapping (idempotent)
-          put shortCode validUrl store
+-- | Get effective PoW difficulty for this request
+-- Authenticated requests use cfgPowDifficultyAuth, anonymous use cfgPowDifficulty
+getEffectiveDifficulty :: Config -> Request -> Int
+getEffectiveDifficulty config req =
+  let apiKeyHeader = lookup "X-API-Key" (requestHeaders req)
+      maybeKey = fmap (APIKey . TE.decodeUtf8) apiKeyHeader
+  in selectDifficulty config maybeKey
 
-          -- Return response
-          let ShortCode code = shortCode
-              response = object
-                [ "short" .= ("http://localhost:8080/" <> code)
-                , "code" .= code
-                ]
-          respond $ responseLBS status200 
-            [("Content-Type", "application/json")]
-            (encode response)
+-- | Pure function to select difficulty based on API key
+-- Exported for testing without wai dependency
+selectDifficulty :: Config -> Maybe APIKey -> Int
+selectDifficulty config maybeKey =
+  let Difficulty anonDiff = cfgPowDifficulty config
+      Difficulty authDiff = cfgPowDifficultyAuth config
+      hasValidKey = case maybeKey of
+        Nothing -> False
+        Just key -> key `elem` cfgAPIKeys config
+  in if hasValidKey then authDiff else anonDiff
+
+-- | Create short link and respond (shared by PoW and non-PoW paths)
+createShortLink :: Config -> SQLiteStore -> ValidURL -> (Response -> IO ResponseReceived) -> IO ResponseReceived
+createShortLink config store validUrl respond = do
+  -- Generate short code (IO operation via SPARK FFI)
+  shortCode <- generateShortCode (cfgSecret config) validUrl
+
+  -- Store mapping (idempotent)
+  put shortCode validUrl store
+
+  -- Return response
+  let ShortCode code = shortCode
+      response = object
+        [ "short" .= ("http://localhost:8080/" <> code)
+        , "code" .= code
+        ]
+  respond $ responseLBS status200
+    [("Content-Type", "application/json")]
+    (encode response)
 
 -- | Handle redirect resolution
 resolveHandler :: SQLiteStore -> T.Text -> Application

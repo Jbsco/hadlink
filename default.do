@@ -25,5 +25,5 @@ Example workflow:
   redo test           # Run tests
   redo prove          # Run SPARK proofs
 
-For more information, see docs/DESIGN.md
+For more information, see docs/README.md
 EOF

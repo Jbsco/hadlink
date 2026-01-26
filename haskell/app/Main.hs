@@ -22,6 +22,7 @@ import System.Environment (getArgs, lookupEnv)
 import System.Exit (die)
 import Data.Maybe (fromMaybe)
 import qualified Data.ByteString.Char8 as BS8
+import qualified Data.Text as T
 import Network.Wai.Handler.Warp (run)
 
 import API
@@ -50,19 +51,28 @@ runShortenDaemon = do
     port <- read <$> getEnvWithDefault "HADLINK_PORT" "8443"
     storagePath <- getEnvWithDefault "HADLINK_STORAGE" "./hadlink.db"
     secretStr <- getEnvWithDefault "HADLINK_SECRET" "CHANGE_ME_INSECURE_DEFAULT"
+    powDiffStr <- getEnvWithDefault "HADLINK_POW_DIFFICULTY" "0"
+    powDiffAuthStr <- getEnvWithDefault "HADLINK_POW_DIFFICULTY_AUTH" "0"
+    apiKeysStr <- getEnvWithDefault "HADLINK_API_KEYS" ""
 
     let secret = BS8.pack secretStr
+        powDifficulty = read powDiffStr
+        powDifficultyAuth = read powDiffAuthStr
+        apiKeys = parseAPIKeys apiKeysStr
         config = Config
           { cfgSecret = secret
-          , cfgPowDifficulty = 0  -- Disabled by default
+          , cfgPowDifficulty = Difficulty powDifficulty
+          , cfgPowDifficultyAuth = Difficulty powDifficultyAuth
           , cfgRateLimitPerIP = 10
           , cfgRateLimitWindow = 60
           , cfgStoragePath = storagePath
-          , cfgAPIKeys = []  -- TODO: Load from config
+          , cfgAPIKeys = apiKeys
           }
 
     putStrLn $ "Starting shorten daemon on port " ++ show port
     putStrLn $ "Storage: " ++ storagePath
+    putStrLn $ "PoW difficulty: " ++ show powDifficulty ++ " (anonymous), " ++ show powDifficultyAuth ++ " (authenticated)"
+    putStrLn $ "API keys configured: " ++ show (length apiKeys)
     putStrLn $ "Rate limit: " ++ show (cfgRateLimitPerIP config) ++ " requests per " ++ show (cfgRateLimitWindow config) ++ "s"
 
     -- Initialize storage
@@ -94,6 +104,7 @@ runRedirectDaemon = do
     let config = Config
           { cfgSecret = ""  -- Not used by redirect
           , cfgPowDifficulty = 0
+          , cfgPowDifficultyAuth = 0
           , cfgRateLimitPerIP = 0
           , cfgRateLimitWindow = 0
           , cfgStoragePath = storagePath
@@ -111,3 +122,14 @@ runRedirectDaemon = do
 -- | Helper to get environment variable with default
 getEnvWithDefault :: String -> String -> IO String
 getEnvWithDefault var def = fromMaybe def <$> lookupEnv var
+
+-- | Parse comma-separated API keys from environment
+parseAPIKeys :: String -> [APIKey]
+parseAPIKeys "" = []
+parseAPIKeys str = map (APIKey . T.strip . T.pack) $ splitOn ',' str
+  where
+    splitOn :: Char -> String -> [String]
+    splitOn _ "" = []
+    splitOn c s = case break (== c) s of
+      (token, "") -> [token]
+      (token, _:rest) -> token : splitOn c rest
