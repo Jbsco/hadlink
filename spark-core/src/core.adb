@@ -28,161 +28,26 @@ package body Core is
    Empty_URL : constant Valid_URL :=
      (Data => (others => ' '), Len => 1);
 
-   --  Default empty short code
-   Empty_Code : constant Short_Code :=
-     (Data => (others => '0'));
-
    --  Base62 alphabet for encoding
    Base62_Alphabet : constant String :=
      "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
 
-   --  Forward declarations for private helper functions
-   function Is_Private_IP (Host : String) return Boolean
-   with Pre => Host'Length >= 1 and then Host'Last < Integer'Last - 1;
-
-   function Has_Valid_Scheme (Input : String) return Boolean
-   with Pre => Input'Length >= 1 and then Input'Last < Integer'Last - 1;
-
-   function Has_Credentials (Input : String) return Boolean
-   with Pre => Input'Length >= 1 and then
-               Input'First >= 1 and then
-               Input'Last < Integer'Last - 10;
-
+   ---------------------------------------------------------------------------
+   --  Helper: Extract host portion from URL string
+   ---------------------------------------------------------------------------
    procedure Extract_Host
      (Input      : String;
       Host_Start : out Natural;
       Host_End   : out Natural;
       Valid      : out Boolean)
    with
-     Pre  => Input'Length >= 7 and then Input'Last < Integer'Last - 10,
+     Pre  => Input'Length >= 7 and then
+             Input'First >= 1 and then
+             Input'Last < Integer'Last - 10,
      Post => (if Valid then
                 Host_Start >= Input'First and then
                 Host_End <= Input'Last and then
-                Host_Start <= Host_End);
-
-   function Compute_Hash
-     (Message : String;
-      Key     : Secret_Key)
-     return String
-   with
-     Pre  => Message'Length >= 1 and then
-             Message'Length <= Max_URL_Length and then
-             Message'Last < Integer'Last,
-     Post => Compute_Hash'Result'Length = 32 and then
-             Compute_Hash'Result'First = 1;
-
-   --  Private IP ranges (simplified checks)
-   function Is_Private_IP (Host : String) return Boolean
-   is
-   begin
-      --  Check for localhost
-      if Host = "localhost" then
-         return True;
-      end if;
-
-      --  Check for common private prefixes
-      if Host'Length >= 3 then
-         declare
-            Prefix3 : constant String :=
-              Host (Host'First .. Host'First + 2);
-         begin
-            if Prefix3 = "10." or else Prefix3 = "127" then
-               return True;
-            end if;
-         end;
-      end if;
-
-      if Host'Length >= 8 then
-         declare
-            Prefix7 : constant String :=
-              Host (Host'First .. Host'First + 6);
-         begin
-            if Prefix7 = "192.168" or else
-               Prefix7 = "172.16." or else Prefix7 = "172.17." or else
-               Prefix7 = "172.18." or else Prefix7 = "172.19." or else
-               Prefix7 = "172.20." or else Prefix7 = "172.21." or else
-               Prefix7 = "172.22." or else Prefix7 = "172.23." or else
-               Prefix7 = "172.24." or else Prefix7 = "172.25." or else
-               Prefix7 = "172.26." or else Prefix7 = "172.27." or else
-               Prefix7 = "172.28." or else Prefix7 = "172.29." or else
-               Prefix7 = "172.30." or else Prefix7 = "172.31."
-            then
-               return True;
-            end if;
-         end;
-      end if;
-
-      return False;
-   end Is_Private_IP;
-
-   --  Check if URL has valid HTTP/HTTPS scheme
-   function Has_Valid_Scheme (Input : String) return Boolean
-   is
-   begin
-      if Input'Length < 7 then
-         return False;
-      end if;
-
-      if Input'Length >= 8 then
-         declare
-            Prefix8 : constant String :=
-              Input (Input'First .. Input'First + 7);
-         begin
-            if Prefix8 = "https://" then
-               return True;
-            end if;
-         end;
-      end if;
-
-      declare
-         Prefix7 : constant String :=
-           Input (Input'First .. Input'First + 6);
-      begin
-         if Prefix7 = "http://" then
-            return True;
-         end if;
-      end;
-
-      return False;
-   end Has_Valid_Scheme;
-
-   --  Check for credentials (user:pass@) - simplified check
-   function Has_Credentials (Input : String) return Boolean
-   is
-      Found_At : Boolean := False;
-   begin
-      --  Look for @ sign followed by checking for : before it
-      for I in Input'Range loop
-         if Input (I) = '@' then
-            Found_At := True;
-            --  Check if there's a : before @
-            for J in Input'First .. I - 1 loop
-               if Input (J) = ':' then
-                  --  Found : before @, but need to skip scheme ://
-                  if J >= Input'First + 5 then
-                     --  Check it's not the scheme separator
-                     if J > Input'First + 6 or else
-                        Input (Input'First .. Input'First + 3) /= "http"
-                     then
-                        return True;
-                     end if;
-                  end if;
-               end if;
-               pragma Loop_Invariant (J >= Input'First);
-            end loop;
-         end if;
-         pragma Loop_Invariant (I >= Input'First);
-      end loop;
-      pragma Unreferenced (Found_At);
-      return False;
-   end Has_Credentials;
-
-   --  Extract host portion from URL
-   procedure Extract_Host
-     (Input      : String;
-      Host_Start : out Natural;
-      Host_End   : out Natural;
-      Valid      : out Boolean)
+                Host_Start <= Host_End)
    is
       Scheme_End : Natural;
    begin
@@ -211,8 +76,7 @@ package body Core is
       --  Find end of host (first '/', '?', '#', or end of string)
       Host_End := Input'Last;
       for I in Host_Start .. Input'Last loop
-         if Input (I) = '/' or else
-            Input (I) = '?' or else Input (I) = '#'
+         if Input (I) = '/' or else Input (I) = '?' or else Input (I) = '#'
          then
             Host_End := I - 1;
             exit;
@@ -226,112 +90,180 @@ package body Core is
       end if;
    end Extract_Host;
 
-   function Canonicalize (Input : String) return Canonicalize_Result is
+   ---------------------------------------------------------------------------
+   --  Helper: Check if host string is a private IP address
+   ---------------------------------------------------------------------------
+   function Is_Private_IP (Host : String) return Boolean
+   with Pre => Host'Length >= 1 and then
+               Host'First >= 1 and then
+               Host'Last < Integer'Last - 1
+   is
+   begin
+      --  Check for localhost
+      if Host = "localhost" then
+         return True;
+      end if;
+
+      --  Check for common private prefixes
+      if Host'Length >= 3 then
+         declare
+            Prefix3 : constant String := Host (Host'First .. Host'First + 2);
+         begin
+            if Prefix3 = "10." or else Prefix3 = "127" then
+               return True;
+            end if;
+         end;
+      end if;
+
+      if Host'Length >= 8 then
+         declare
+            Prefix7 : constant String := Host (Host'First .. Host'First + 6);
+         begin
+            if Prefix7 = "192.168" or else
+               Prefix7 = "172.16." or else Prefix7 = "172.17." or else
+               Prefix7 = "172.18." or else Prefix7 = "172.19." or else
+               Prefix7 = "172.20." or else Prefix7 = "172.21." or else
+               Prefix7 = "172.22." or else Prefix7 = "172.23." or else
+               Prefix7 = "172.24." or else Prefix7 = "172.25." or else
+               Prefix7 = "172.26." or else Prefix7 = "172.27." or else
+               Prefix7 = "172.28." or else Prefix7 = "172.29." or else
+               Prefix7 = "172.30." or else Prefix7 = "172.31."
+            then
+               return True;
+            end if;
+         end;
+      end if;
+
+      return False;
+   end Is_Private_IP;
+
+   ---------------------------------------------------------------------------
+   --  Has_Credentials implementation
+   ---------------------------------------------------------------------------
+   function Has_Credentials (S : String) return Boolean
+   is
+   begin
+      --  Look for @ sign followed by checking for : before it
+      for I in S'Range loop
+         if S (I) = '@' then
+            --  Check if there's a : before @
+            for J in S'First .. I - 1 loop
+               if S (J) = ':' then
+                  --  Found : before @, but need to skip scheme ://
+                  if J >= S'First + 5 then
+                     --  Check it's not the scheme separator
+                     if J > S'First + 6 or else
+                        S (S'First .. S'First + 3) /= "http"
+                     then
+                        return True;
+                     end if;
+                  end if;
+               end if;
+               pragma Loop_Invariant (J >= S'First);
+            end loop;
+         end if;
+         pragma Loop_Invariant (I >= S'First);
+      end loop;
+      return False;
+   end Has_Credentials;
+
+   ---------------------------------------------------------------------------
+   --  Has_Private_Host implementation
+   ---------------------------------------------------------------------------
+   function Has_Private_Host (S : String) return Boolean
+   is
       Host_Start : Natural;
       Host_End   : Natural;
       Host_Valid : Boolean;
-      Result     : Canonicalize_Result;
    begin
-      --  Initialize Result.URL to avoid uninitialized warnings
-      Result.URL := Empty_URL;
-
-      --  Check length
-      if Input'Length = 0 or else Input'Length > Max_URL_Length then
-         Result.Status := Invalid_Length;
-         return Result;
-      end if;
-
-      --  Check scheme
-      if not Has_Valid_Scheme (Input) then
-         Result.Status := Invalid_Scheme;
-         return Result;
-      end if;
-
-      --  Check for credentials
-      if Has_Credentials (Input) then
-         Result.Status := Credentials_Present;
-         return Result;
-      end if;
-
-      --  Ensure minimum length for Extract_Host (implied by valid scheme)
-      if Input'Length < 7 then
-         Result.Status := Invalid_Scheme;
-         return Result;
-      end if;
-
-      --  Extract and validate host
-      Extract_Host (Input, Host_Start, Host_End, Host_Valid);
+      Extract_Host (S, Host_Start, Host_End, Host_Valid);
       if not Host_Valid or else Host_Start = 0 then
-         Result.Status := Invalid_Host;
-         return Result;
+         return True;  -- Invalid = treat as private (fail safe)
       end if;
 
-      --  Check for private addresses
       if Host_End >= Host_Start and then
          Host_End - Host_Start < Max_URL_Length
       then
-         declare
-            Host : constant String := Input (Host_Start .. Host_End);
-         begin
-            if Is_Private_IP (Host) then
-               Result.Status := Private_Address;
-               return Result;
-            end if;
-         end;
+         return Is_Private_IP (S (Host_Start .. Host_End));
       else
-         Result.Status := Invalid_Host;
-         return Result;
+         return True;
       end if;
+   end Has_Private_Host;
 
-      --  URL is valid - copy to output
-      Result.URL.Data (1 .. Input'Length) := Input;
-      Result.URL.Len := Input'Length;
-      Result.Status := Success;
-
-      --  Invariant boundary assumptions for postcondition:
+   ---------------------------------------------------------------------------
+   --  Ghost Lemma: Predicate Substitution
+   --
+   --  This lemma helps the prover understand that for equal strings,
+   --  the predicate functions return equal results. The prover cannot
+   --  automatically deduce this for non-expression functions.
+   --
+   --  See docs/GOLD_LEVEL_PROOFS.md for the full proof strategy.
+   ---------------------------------------------------------------------------
+   procedure Lemma_Predicate_Substitution
+     (A : String;
+      B : String)
+   with
+     Ghost,
+     Pre  => A = B and then
+             A'Length >= 7 and then
+             A'First >= 1 and then
+             A'Last < Integer'Last - 10 and then
+             B'First >= 1 and then
+             B'Last < Integer'Last - 10,
+     Post => Has_Valid_Scheme (A) = Has_Valid_Scheme (B) and then
+             Has_Credentials (A) = Has_Credentials (B) and then
+             Has_Private_Host (A) = Has_Private_Host (B)
+   is
+   begin
+      --  JUSTIFICATION: These functions are mathematically pure - they have
+      --  no side effects and their results depend only on their inputs.
+      --  When A = B, it is mathematically certain that f(A) = f(B).
       --
-      --  The postcondition requires Is_HTTP_Or_HTTPS, Not_Private_Address,
-      --  and No_Credentials to hold on Result.URL. We have verified equivalent
-      --  properties on Input via Has_Valid_Scheme, Is_Private_IP, and
-      --  Has_Credentials, then copied Input verbatim into Result.URL.
+      --  The prover cannot automatically deduce this for non-expression
+      --  functions, so we provide this lemma with documented assumptions.
       --
-      --  The prover cannot automatically link these function pairs because:
-      --  1. They operate on different types (String vs Valid_URL)
-      --  2. String slice equality/extraction is opaque to the prover
-      --  3. The data flow through the record assignment is not tracked
+      --  Has_Valid_Scheme is an expression function, proves automatically.
+      --  Has_Credentials and Has_Private_Host have bodies, need assumes.
       --
-      --  Each assumption below is sound because the validation function and
-      --  its corresponding query function perform identical checks on what
-      --  are now identical underlying bytes. Any violation would require the
-      --  paired functions to disagree on the same byte sequence.
+      --  These assumptions are confined to this ghost lemma rather than
+      --  scattered throughout the business logic, making them easier to
+      --  audit and maintain.
+      pragma Assume (Has_Credentials (A) = Has_Credentials (B),
+                     "Pure function determinism: A = B implies f(A) = f(B)");
+      pragma Assume (Has_Private_Host (A) = Has_Private_Host (B),
+                     "Pure function determinism: A = B implies f(A) = f(B)");
+   end Lemma_Predicate_Substitution;
 
-      --  Is_HTTP_Or_HTTPS: Has_Valid_Scheme verified "http://" or "https://"
-      --  prefix on Input; Is_HTTP_Or_HTTPS checks the same prefix via
-      --  To_String(URL)
-      pragma Assume (Is_HTTP_Or_HTTPS (Result.URL),
-                     "Has_Valid_Scheme verified http(s):// prefix on Input; " &
-                     "Result.URL contains verbatim copy of Input");
-
-      --  Not_Private_Address: Is_Private_IP returned False for extracted host;
-      --  Not_Private_Address extracts host from To_String(URL) and calls same
-      pragma Assume (Not_Private_Address (Result.URL),
-                     "Is_Private_IP verified host is not private on Input; " &
-                     "Result.URL contains verbatim copy of Input");
-
-      --  No_Credentials: Has_Credentials returned False for Input;
-      --  No_Credentials calls Has_Credentials on To_String(URL)
-      pragma Assume (No_Credentials (Result.URL),
-                     "Has_Credentials verified no credentials in Input; " &
-                     "Result.URL contains verbatim copy of Input");
-
+   ---------------------------------------------------------------------------
+   --  Make_Valid_URL: Constructor with content postcondition
+   --
+   --  This is the critical bridge for proof chaining. The postcondition
+   --  To_String(Result) = S allows the prover to substitute:
+   --    Has_Valid_Scheme(To_String(Result)) = Has_Valid_Scheme(S)
+   ---------------------------------------------------------------------------
+   function Make_Valid_URL (S : String) return Valid_URL
+   is
+      Result : Valid_URL;
+   begin
+      Result.Data (1 .. S'Length) := S;
+      Result.Len := S'Length;
       return Result;
-   end Canonicalize;
+   end Make_Valid_URL;
 
-   --  HMAC-SHA256 using SPARKNaCl verified implementation
+   ---------------------------------------------------------------------------
+   --  Compute HMAC-SHA256 using SPARKNaCl verified implementation
+   ---------------------------------------------------------------------------
    function Compute_Hash
      (Message : String;
       Key     : Secret_Key)
      return String
+   with
+     Pre  => Message'Length >= 1 and then
+             Message'Length <= Max_URL_Length and then
+             Message'First = 1 and then
+             Message'Last < Integer'Last,
+     Post => Compute_Hash'Result'Length = 32 and then
+             Compute_Hash'Result'First = 1
    is
       --  Convert message String to SPARKNaCl Byte_Seq (0-indexed)
       Msg_Len   : constant N32 := N32 (Message'Length);
@@ -373,13 +305,123 @@ package body Core is
       return Result;
    end Compute_Hash;
 
+   ---------------------------------------------------------------------------
+   --  Canonicalize
+   --
+   --  Proof strategy (see docs/GOLD_LEVEL_PROOFS.md for details):
+   --
+   --  At the success path, we have established:
+   --    (a) Has_Valid_Scheme(Input) = True
+   --    (b) Has_Credentials(Input) = False
+   --    (c) Has_Private_Host(Input) = False
+   --
+   --  Make_Valid_URL(Input) guarantees:
+   --    (d) To_String(Result.URL) = Input
+   --
+   --  Query functions are defined as expression functions:
+   --    Is_HTTP_Or_HTTPS(URL) = Has_Valid_Scheme(To_String(URL))
+   --    No_Credentials(URL) = not Has_Credentials(To_String(URL))
+   --    Not_Private_Address(URL) = not Has_Private_Host(To_String(URL))
+   --
+   --  The ghost lemma Lemma_Predicate_Substitution proves:
+   --    predicate(To_String(URL)) = predicate(Input)
+   --    when To_String(URL) = Input
+   --
+   --  By substitution:
+   --    Is_HTTP_Or_HTTPS(Result.URL) = Has_Valid_Scheme(Input) = True
+   --    No_Credentials(Result.URL) = not Has_Credentials(Input) = True
+   --    Not_Private_Address(Result.URL) = not Has_Private_Host(Input) = True
+   --
+   --  Therefore the postcondition is satisfied. QED.
+   ---------------------------------------------------------------------------
+   function Canonicalize (Input : String) return Canonicalize_Result is
+      Host_Start : Natural;
+      Host_End   : Natural;
+      Host_Valid : Boolean;
+      Result     : Canonicalize_Result;
+   begin
+      --  Initialize Result.URL for error cases
+      Result.URL := Empty_URL;
+
+      --  Check length
+      if Input'Length < 7 or else Input'Length > Max_URL_Length then
+         Result.Status := Invalid_Length;
+         return Result;
+      end if;
+
+      --  Check scheme
+      --  After this point: Has_Valid_Scheme(Input) = True
+      if not Has_Valid_Scheme (Input) then
+         Result.Status := Invalid_Scheme;
+         return Result;
+      end if;
+
+      --  Check for credentials
+      --  After this point: Has_Credentials(Input) = False
+      if Has_Credentials (Input) then
+         Result.Status := Credentials_Present;
+         return Result;
+      end if;
+
+      --  Extract and validate host
+      Extract_Host (Input, Host_Start, Host_End, Host_Valid);
+      pragma Unreferenced (Host_End);  --  Used only by Has_Private_Host
+      if not Host_Valid or else Host_Start = 0 then
+         Result.Status := Invalid_Host;
+         return Result;
+      end if;
+
+      --  Check for private addresses
+      --  After this point: Has_Private_Host(Input) = False
+      if Has_Private_Host (Input) then
+         Result.Status := Private_Address;
+         return Result;
+      end if;
+
+      --  All checks passed.
+      --
+      --  At this point we have established:
+      --    Has_Valid_Scheme(Input) = True
+      --    Has_Credentials(Input) = False
+      --    Has_Private_Host(Input) = False
+      --
+      --  Make_Valid_URL's postcondition guarantees:
+      --    To_String(Result.URL) = Input
+      --
+      --  The query functions (Is_HTTP_Or_HTTPS, etc.) are expression
+      --  functions that call the same predicates on To_String(URL).
+      --  The prover can substitute Input for To_String(URL) and
+      --  conclude the postcondition holds.
+
+      Result.URL := Make_Valid_URL (Input);
+      Result.Status := Success;
+
+      --  Apply the substitution lemma to help the prover.
+      --  The lemma proves that equal strings produce equal predicate results.
+      Lemma_Predicate_Substitution (To_String (Result.URL), Input);
+
+      --  These assertions are now provable by substitution:
+      --  We know: To_String(Result.URL) = Input (Make_Valid_URL post)
+      --  Lemma gives: predicate(To_String(Result.URL)) = predicate(Input)
+      --  We know: Has_Valid_Scheme(Input) = True (checked above)
+      --  Therefore: Has_Valid_Scheme(To_String(Result.URL)) = True
+      pragma Assert (Has_Valid_Scheme (To_String (Result.URL)));
+      pragma Assert (not Has_Credentials (To_String (Result.URL)));
+      pragma Assert (not Has_Private_Host (To_String (Result.URL)));
+
+      return Result;
+   end Canonicalize;
+
+   ---------------------------------------------------------------------------
+   --  Make_Short_Code
+   ---------------------------------------------------------------------------
    function Make_Short_Code
      (URL    : Valid_URL;
       Secret : Secret_Key)
      return Short_Code
    is
       URL_Str  : constant String := To_String (URL);
-      Code     : Short_Code := Empty_Code;
+      Code     : Short_Code;
       Hash_Val : Unsigned_64 := 0;
    begin
       --  Compute hash and convert first 8 bytes to integer
@@ -404,71 +446,5 @@ package body Core is
 
       return Code;
    end Make_Short_Code;
-
-   --  Query functions
-   function Is_HTTP_Or_HTTPS (URL : Valid_URL) return Boolean is
-      URL_Str : constant String := To_String (URL);
-   begin
-      if URL_Str'Length >= 8 and then
-         URL_Str (URL_Str'First .. URL_Str'First + 7) = "https://"
-      then
-         return True;
-      elsif URL_Str'Length >= 7 and then
-         URL_Str (URL_Str'First .. URL_Str'First + 6) = "http://"
-      then
-         return True;
-      else
-         return False;
-      end if;
-   end Is_HTTP_Or_HTTPS;
-
-   function Not_Private_Address (URL : Valid_URL) return Boolean is
-      URL_Str    : constant String := To_String (URL);
-      Host_Start : Natural;
-      Host_End   : Natural;
-      Host_Valid : Boolean;
-   begin
-      if URL_Str'Length < 7 then
-         return False;
-      end if;
-
-      Extract_Host (URL_Str, Host_Start, Host_End, Host_Valid);
-      if not Host_Valid or else Host_Start = 0 then
-         return False;
-      end if;
-
-      if Host_End >= Host_Start and then
-         Host_End - Host_Start < Max_URL_Length
-      then
-         return not Is_Private_IP (URL_Str (Host_Start .. Host_End));
-      else
-         return False;
-      end if;
-   end Not_Private_Address;
-
-   function No_Credentials (URL : Valid_URL) return Boolean is
-      URL_Str : constant String := To_String (URL);
-   begin
-      if URL_Str'Length < 7 then
-         return True;
-      end if;
-      return not Has_Credentials (URL_Str);
-   end No_Credentials;
-
-   function Length (Code : Short_Code) return Natural is
-      pragma Unreferenced (Code);
-   begin
-      return Short_Code_Length;
-   end Length;
-
-   function To_String (Code : Short_Code) return String is
-   begin
-      return Code.Data;
-   end To_String;
-
-   function To_String (URL : Valid_URL) return String is
-   begin
-      return URL.Data (1 .. URL.Len);
-   end To_String;
 
 end Core;

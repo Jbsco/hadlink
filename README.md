@@ -333,7 +333,7 @@ Non-goals may be revisited if the threat model or invariants change. For example
 
 **This project is not certified.**
 
-It is architected and developed with reference to the integrity objectives of DO-278A (Software Integrity Level 3), including integrity allocation, explicit assumptions, formal verification of integrity-critical logic, and traceability of requirements to verification artifacts.
+It is architected and developed with reference to the integrity objectives of DO-278A (Software Integrity Level 3), including integrity allocation, explicit assumptions, formal verification of integrity-critical logic, and traceability of requirements to verification artifacts. The SPARK verification approach follows the [Implementation Guidance for the Adoption of SPARK](https://www.adacore.com/uploads/books/Spark-Guidance-1.2-web.pdf) (AdaCore & Thales).
 
 Formal certification is out of scope due to lack of operational deployment, certification authority, and independent verification resources. This is a single-developer project.
 
