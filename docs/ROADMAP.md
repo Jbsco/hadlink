@@ -32,7 +32,7 @@ Follow the migration plan: Haskell-only → SPARK extraction → frozen API.
 
 ### Deliverables
 - [x] Working Haskell implementation
-- [x] Comprehensive test suite (21 property tests, 100 iterations each)
+- [x] Comprehensive test suite (24 property tests, 100 iterations each)
 - [x] Documentation of invariants
 - [x] Initial deployment (Docker + systemd)
 
@@ -165,7 +165,7 @@ The following will **not** be added to maintain scope:
 **Achievements**:
 - FFI integration complete: Haskell calls SPARK core for URL validation and short code generation
 - Near Gold-level SPARK proofs: Business logic assume-free, 2 pragma Assume confined to ghost lemma (see [GOLD_LEVEL_PROOFS.md](GOLD_LEVEL_PROOFS.md))
-- Comprehensive property test suite: 21 Hedgehog tests covering canonicalization, short codes, negative cases, rate limiting, and proof-of-work
+- Comprehensive property test suite: 24 Hedgehog tests covering canonicalization, short codes, negative cases, rate limiting, proof-of-work, and difficulty selection
 - Rate limiting implemented and tested: Token bucket per IP with configurable limits
 
 ---
@@ -182,7 +182,7 @@ This project is designed and developed following the principles of DO-278A Softw
 | **Deterministic Core Behavior** | ✓ Complete | SPARK proves termination, bounded execution, no exceptions |
 | **Input Validation** | ✓ Complete | URL validation with proven postconditions |
 | **Assumption Documentation** | ✓ Complete | 2 `pragma Assume` confined to ghost lemma with rationale; see [GOLD_LEVEL_PROOFS.md](GOLD_LEVEL_PROOFS.md) |
-| **Verification Evidence** | ✓ Complete | GNATprove output (111 checks), Hedgehog tests (21 properties) |
+| **Verification Evidence** | ✓ Complete | GNATprove output (111 checks), Hedgehog tests (24 properties) |
 | **High-Level Requirements** | ✓ Complete | Invariants, non-goals, security constraints, abuse mitigation |
 | **Traceability** | Partial | Requirements documented; formal traceability matrix out of scope |
 | **Defined Baselines** | Out of Scope | Git tags serve as informal baselines |

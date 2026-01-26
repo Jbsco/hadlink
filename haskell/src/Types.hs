@@ -84,10 +84,11 @@ data APIError
 
 -- | Configuration for the shortener service
 data Config = Config
-  { cfgSecret          :: ByteString  -- HMAC secret for short codes
-  , cfgPowDifficulty   :: Difficulty  -- PoW difficulty (0 = disabled)
-  , cfgRateLimitPerIP  :: Int         -- Max requests per IP per window
-  , cfgRateLimitWindow :: Int         -- Rate limit window in seconds
-  , cfgStoragePath     :: FilePath    -- Path to storage backend
-  , cfgAPIKeys         :: [APIKey]    -- Authorized API keys (bypass PoW)
+  { cfgSecret              :: ByteString  -- HMAC secret for short codes
+  , cfgPowDifficulty       :: Difficulty  -- PoW difficulty for anonymous requests (0 = disabled)
+  , cfgPowDifficultyAuth   :: Difficulty  -- PoW difficulty for authenticated requests (0 = bypass)
+  , cfgRateLimitPerIP      :: Int         -- Max requests per IP per window
+  , cfgRateLimitWindow     :: Int         -- Rate limit window in seconds
+  , cfgStoragePath         :: FilePath    -- Path to storage backend
+  , cfgAPIKeys             :: [APIKey]    -- Authorized API keys
   } deriving (Show, Eq, Generic)

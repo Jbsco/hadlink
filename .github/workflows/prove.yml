@@ -13,6 +13,15 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Debug checked-out commit
+        run: |
+          echo "github.sha = ${{ github.sha }}"
+          git rev-parse HEAD
+          git log -1 --oneline
 
       - name: Cache Alire
         uses: actions/cache@v4

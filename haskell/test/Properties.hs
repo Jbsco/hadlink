@@ -36,6 +36,7 @@ import ShortCode (generateShortCode)
 import SparkFFI (initSpark, finalizeSpark)
 import RateLimit (newRateLimiter, checkLimit)
 import ProofOfWork (verifyPoW, leadingZeroBits)
+import API (selectDifficulty)
 
 import Control.Exception (bracket)
 import Test.Tasty.Runners (NumThreads(..))
@@ -53,6 +54,7 @@ tests = testGroup "hadlink Properties"
   , negativeTests
   , rateLimitTests
   , proofOfWorkTests
+  , effectiveDifficultyTests
   ]
 
 --------------------------------------------------------------------------------
@@ -362,6 +364,7 @@ testConfig :: Int -> Int -> Config
 testConfig limit window = Config
   { cfgSecret = "testsecrettestsecrettestsecrett"  -- 32 bytes
   , cfgPowDifficulty = Difficulty 0
+  , cfgPowDifficultyAuth = Difficulty 0
   , cfgRateLimitPerIP = limit
   , cfgRateLimitWindow = window
   , cfgStoragePath = ":memory:"
@@ -494,3 +497,59 @@ prop_pow_valid_proof = property $ do
       -- Probability of all 100 failing at difficulty 4 is (15/16)^100 ≈ 0.001
       -- At difficulty 1, it's (1/2)^100 ≈ 0
       assert $ not (null validNonces)
+
+--------------------------------------------------------------------------------
+-- Effective Difficulty Tests
+--------------------------------------------------------------------------------
+
+effectiveDifficultyTests :: TestTree
+effectiveDifficultyTests = testGroup "Effective Difficulty Selection"
+  [ testProperty "anonymous requests use cfgPowDifficulty" prop_anon_uses_pow_difficulty
+  , testProperty "valid API key uses cfgPowDifficultyAuth" prop_auth_uses_auth_difficulty
+  , testProperty "invalid API key uses cfgPowDifficulty" prop_invalid_key_uses_anon_difficulty
+  ]
+
+-- | Create a test config with specified PoW difficulties
+testPowConfig :: Int -> Int -> [T.Text] -> Config
+testPowConfig anonDiff authDiff keys = Config
+  { cfgSecret = "testsecrettestsecrettestsecrett"  -- 32 bytes
+  , cfgPowDifficulty = Difficulty anonDiff
+  , cfgPowDifficultyAuth = Difficulty authDiff
+  , cfgRateLimitPerIP = 10
+  , cfgRateLimitWindow = 60
+  , cfgStoragePath = ":memory:"
+  , cfgAPIKeys = map APIKey keys
+  }
+
+-- | Anonymous requests (no API key) should use cfgPowDifficulty
+prop_anon_uses_pow_difficulty :: Property
+prop_anon_uses_pow_difficulty = property $ do
+  anonDiff <- forAll $ Gen.int (Range.linear 0 16)
+  authDiff <- forAll $ Gen.int (Range.linear 0 16)
+
+  let config = testPowConfig anonDiff authDiff ["valid-key"]
+      result = selectDifficulty config Nothing
+
+  result === anonDiff
+
+-- | Requests with valid API key should use cfgPowDifficultyAuth
+prop_auth_uses_auth_difficulty :: Property
+prop_auth_uses_auth_difficulty = property $ do
+  anonDiff <- forAll $ Gen.int (Range.linear 0 16)
+  authDiff <- forAll $ Gen.int (Range.linear 0 16)
+
+  let config = testPowConfig anonDiff authDiff ["valid-key", "another-key"]
+      result = selectDifficulty config (Just (APIKey "valid-key"))
+
+  result === authDiff
+
+-- | Requests with invalid API key should use cfgPowDifficulty (treated as anonymous)
+prop_invalid_key_uses_anon_difficulty :: Property
+prop_invalid_key_uses_anon_difficulty = property $ do
+  anonDiff <- forAll $ Gen.int (Range.linear 0 16)
+  authDiff <- forAll $ Gen.int (Range.linear 0 16)
+
+  let config = testPowConfig anonDiff authDiff ["valid-key"]
+      result = selectDifficulty config (Just (APIKey "wrong-key"))
+
+  result === anonDiff

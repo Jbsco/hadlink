@@ -12,7 +12,7 @@ redo-ifchange ../spark-core/build
 redo-ifchange hadlink.cabal $(find src app -name '*.hs' 2>/dev/null)
 
 echo "Building Haskell components..."
-stack build
+stack build --test --no-run-tests
 
 # Mark as successfully built
 touch "$3"

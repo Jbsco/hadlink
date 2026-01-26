@@ -52,14 +52,17 @@ runShortenDaemon = do
     storagePath <- getEnvWithDefault "HADLINK_STORAGE" "./hadlink.db"
     secretStr <- getEnvWithDefault "HADLINK_SECRET" "CHANGE_ME_INSECURE_DEFAULT"
     powDiffStr <- getEnvWithDefault "HADLINK_POW_DIFFICULTY" "0"
+    powDiffAuthStr <- getEnvWithDefault "HADLINK_POW_DIFFICULTY_AUTH" "0"
     apiKeysStr <- getEnvWithDefault "HADLINK_API_KEYS" ""
 
     let secret = BS8.pack secretStr
         powDifficulty = read powDiffStr
+        powDifficultyAuth = read powDiffAuthStr
         apiKeys = parseAPIKeys apiKeysStr
         config = Config
           { cfgSecret = secret
           , cfgPowDifficulty = Difficulty powDifficulty
+          , cfgPowDifficultyAuth = Difficulty powDifficultyAuth
           , cfgRateLimitPerIP = 10
           , cfgRateLimitWindow = 60
           , cfgStoragePath = storagePath
@@ -68,7 +71,7 @@ runShortenDaemon = do
 
     putStrLn $ "Starting shorten daemon on port " ++ show port
     putStrLn $ "Storage: " ++ storagePath
-    putStrLn $ "PoW difficulty: " ++ show powDifficulty ++ " (0 = disabled)"
+    putStrLn $ "PoW difficulty: " ++ show powDifficulty ++ " (anonymous), " ++ show powDifficultyAuth ++ " (authenticated)"
     putStrLn $ "API keys configured: " ++ show (length apiKeys)
     putStrLn $ "Rate limit: " ++ show (cfgRateLimitPerIP config) ++ " requests per " ++ show (cfgRateLimitWindow config) ++ "s"
 
@@ -101,6 +104,7 @@ runRedirectDaemon = do
     let config = Config
           { cfgSecret = ""  -- Not used by redirect
           , cfgPowDifficulty = 0
+          , cfgPowDifficultyAuth = 0
           , cfgRateLimitPerIP = 0
           , cfgRateLimitWindow = 0
           , cfgStoragePath = storagePath
