@@ -50,7 +50,7 @@ Follow the migration plan: Haskell-only → SPARK extraction → frozen API.
 - [x] Implement private address rejection
 - [x] Implement credential rejection
 - [x] Implement length bounds
-- [x] Prove all properties (postconditions via pragma Assume)
+- [x] Prove all properties (near Gold-level via ghost lemma)
 
 ### Milestone 2.2: SPARK Short Code Generation
 - [x] Implement HMAC-SHA256 in SPARK (via SPARKNaCl)
@@ -74,7 +74,7 @@ Follow the migration plan: Haskell-only → SPARK extraction → frozen API.
 - [x] Property tests pass with SPARK backend (14 tests, single-threaded FFI)
 
 ### Deliverables
-- [x] Proved SPARK core library (100% with pragma Assume for postconditions)
+- [x] Proved SPARK core library (near Gold-level, assumes confined to ghost lemma)
 - [x] FFI boundary (working)
 - [x] Haskell using SPARK via FFI
 - [x] Test suite validates equivalence
@@ -164,7 +164,7 @@ The following will **not** be added to maintain scope:
 
 **Achievements**:
 - FFI integration complete: Haskell calls SPARK core for URL validation and short code generation
-- SPARK proofs at 100% for hadlink core (91 checks, 3 pragma Assume for postconditions)
+- Near Gold-level SPARK proofs: Business logic assume-free, 2 pragma Assume confined to ghost lemma (see [GOLD_LEVEL_PROOFS.md](GOLD_LEVEL_PROOFS.md))
 - Comprehensive property test suite: 17 Hedgehog tests covering canonicalization, short codes, negative cases, and rate limiting
 - Rate limiting implemented and tested: Token bucket per IP with configurable limits
 
@@ -181,8 +181,8 @@ This project is designed and developed following the principles of DO-278A Softw
 | **Integrity Allocation** | ✓ Complete | SPARK core (high-integrity) / Haskell service (supporting) |
 | **Deterministic Core Behavior** | ✓ Complete | SPARK proves termination, bounded execution, no exceptions |
 | **Input Validation** | ✓ Complete | URL validation with proven postconditions |
-| **Assumption Documentation** | ✓ Complete | `pragma Assume` with rationale comments at proof boundaries |
-| **Verification Evidence** | ✓ Complete | GNATprove output (91 checks), Hedgehog tests (17 properties) |
+| **Assumption Documentation** | ✓ Complete | 2 `pragma Assume` confined to ghost lemma with rationale; see [GOLD_LEVEL_PROOFS.md](GOLD_LEVEL_PROOFS.md) |
+| **Verification Evidence** | ✓ Complete | GNATprove output (111 checks), Hedgehog tests (17 properties) |
 | **High-Level Requirements** | ✓ Complete | Invariants, non-goals, security constraints, abuse mitigation |
 | **Traceability** | Partial | Requirements documented; formal traceability matrix out of scope |
 | **Defined Baselines** | Out of Scope | Git tags serve as informal baselines |
