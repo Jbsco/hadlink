@@ -121,7 +121,7 @@ The redirect path is optimized for speed (Warp + SQLite lookup). Create operatio
 **Phase**: Phase 2 complete, preparing for hardening
 
 - SPARK core 100% verified (URL validation, short code generation)
-- 17 property tests via Hedgehog (canonicalization, short codes, negative cases, rate limiting)
+- 21 property tests via Hedgehog (canonicalization, short codes, negative cases, rate limiting, proof-of-work)
 - Rate limiting integrated and tested (token bucket per IP)
 - FFI boundary stable
 
@@ -256,6 +256,37 @@ For best security:
 - Run services with least privilege
 - Use read-only filesystems where possible
 - Monitor logs for abnormal creation rates
+
+### Proof-of-Work
+
+Optional proof-of-work mitigates spam by requiring clients to compute a valid nonce before creating short links. PoW is disabled by default.
+
+**Disable PoW** (default):
+```bash
+export HADLINK_POW_DIFFICULTY=0
+```
+
+**Enable PoW**:
+```bash
+# Difficulty = number of leading zero bits required in SHA256(url || nonce)
+# Higher values = more computation required (each +1 doubles average work)
+export HADLINK_POW_DIFFICULTY=4   # Recommended starting point
+
+# API keys bypass PoW requirement (comma-separated, for trusted clients)
+export HADLINK_API_KEYS=ci-system-key,monitoring-key
+```
+
+**Client usage** (when PoW enabled):
+```bash
+# Client must find a nonce where SHA256(url || nonce) has N leading zero bits
+curl -X POST http://hadlink.internal/api/create \
+  -d "url=https://example.com/path&nonce=<valid-nonce>"
+
+# Or use an API key to bypass PoW
+curl -X POST http://hadlink.internal/api/create \
+  -H "X-API-Key: ci-system-key" \
+  -d "url=https://example.com/path"
+```
 
 ### Reporting a Vulnerability
 
