@@ -1,0 +1,137 @@
+name: Docker Deployment
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'deploy/docker/**'
+      - 'deploy/deploy.sh'
+      - '.github/workflows/deploy-docker.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'deploy/docker/**'
+      - 'deploy/deploy.sh'
+      - '.github/workflows/deploy-docker.yml'
+  workflow_dispatch:
+
+jobs:
+  docker-build-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: deploy/docker/Dockerfile
+          push: false
+          load: true
+          tags: hadlink:test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Create test environment
+        run: |
+          cd deploy/docker
+          mkdir -p data
+          # Generate test secret
+          echo "test-secret-key-for-ci" > secret.key
+          chmod 600 secret.key
+
+      - name: Start services
+        run: |
+          cd deploy/docker
+          # Override image tag for testing
+          sed -i 's/hadlink:latest/hadlink:test/g' docker-compose.yml
+          docker compose up -d
+          # Wait for services to be healthy
+          echo "Waiting for services to start..."
+          sleep 10
+
+      - name: Check container status
+        run: |
+          docker compose -f deploy/docker/docker-compose.yml ps
+          docker compose -f deploy/docker/docker-compose.yml logs
+
+      - name: Health check - shorten service
+        run: |
+          # Check if shorten service is responding (404 on unknown path is OK)
+          response=$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:8443/_ping || true)
+          echo "Shorten service response code: $response"
+          # Any HTTP response indicates service is running
+          if [ -z "$response" ] || [ "$response" = "000" ]; then
+            echo "Shorten service is not responding"
+            docker compose -f deploy/docker/docker-compose.yml logs shorten
+            exit 1
+          fi
+          echo "Shorten service is healthy"
+
+      - name: Health check - redirect service
+        run: |
+          # Check if redirect service is responding
+          response=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/_ping || true)
+          echo "Redirect service response code: $response"
+          if [ -z "$response" ] || [ "$response" = "000" ]; then
+            echo "Redirect service is not responding"
+            docker compose -f deploy/docker/docker-compose.yml logs redirect
+            exit 1
+          fi
+          echo "Redirect service is healthy"
+
+      - name: Smoke test - create short link
+        run: |
+          # Create a short link via the API
+          response=$(curl -s -X POST http://127.0.0.1:8443/api/create \
+            -H "X-API-Key: test" \
+            -d "url=https://example.com/test/path")
+          echo "Create response: $response"
+          # Check if response contains expected fields
+          if echo "$response" | grep -q "short"; then
+            echo "Create endpoint working"
+          else
+            echo "Create endpoint failed"
+            docker compose -f deploy/docker/docker-compose.yml logs
+            exit 1
+          fi
+
+      - name: Smoke test - redirect lookup
+        run: |
+          # First create a link to test redirect
+          response=$(curl -s -X POST http://127.0.0.1:8443/api/create \
+            -H "X-API-Key: test" \
+            -d "url=https://example.com/redirect/test")
+          echo "Create response: $response"
+
+          # Extract short code from response
+          code=$(echo "$response" | grep -oP '"code"\s*:\s*"\K[^"]+' || echo "")
+          if [ -z "$code" ]; then
+            echo "Could not extract short code from response"
+            exit 1
+          fi
+          echo "Short code: $code"
+
+          # Test redirect (should return 302)
+          redirect_response=$(curl -s -o /dev/null -w "%{http_code}" "http://localhost:8080/$code")
+          echo "Redirect response code: $redirect_response"
+          if [ "$redirect_response" = "302" ]; then
+            echo "Redirect working correctly"
+          else
+            echo "Redirect failed (expected 302, got $redirect_response)"
+            docker compose -f deploy/docker/docker-compose.yml logs
+            exit 1
+          fi
+
+      - name: Cleanup
+        if: always()
+        run: |
+          cd deploy/docker
+          docker compose down -v
+          rm -f secret.key

@@ -95,9 +95,9 @@ Follow the migration plan: Haskell-only → SPARK extraction → frozen API.
 
 ### Milestone 3.2: Deployment Hardening
 - [ ] Separate redirect/shorten binaries
-- [ ] Read-only redirect daemon
-- [ ] Systemd hardening
-- [ ] Docker security options
+- [x] Read-only redirect daemon
+- [x] Systemd hardening
+- [x] Docker security options
 - [ ] Monitoring and logging
 
 ### Milestone 3.3: Documentation
@@ -113,7 +113,7 @@ Follow the migration plan: Haskell-only → SPARK extraction → frozen API.
 - Production deployment guides
 - Security documentation
 
-**Status**: Not Started
+**Status**: In Progress
 
 ---
 
@@ -167,6 +167,9 @@ The following will **not** be added to maintain scope:
 - Near Gold-level SPARK proofs: Business logic assume-free, 2 pragma Assume confined to ghost lemma (see [GOLD_LEVEL_PROOFS.md](GOLD_LEVEL_PROOFS.md))
 - Comprehensive property test suite: 24 Hedgehog tests covering canonicalization, short codes, negative cases, rate limiting, proof-of-work, and difficulty selection
 - Rate limiting implemented and tested: Token bucket per IP with configurable limits
+- Docker deployment: Multi-stage Dockerfile, security-hardened docker-compose with health checks
+- Systemd deployment: Hardened service units with comprehensive security directives
+- CI workflows: Docker build/test and systemd validation workflows
 
 ---
 

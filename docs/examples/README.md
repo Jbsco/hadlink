@@ -138,38 +138,69 @@ qrencode -o router-admin.png "$SHORT"
 
 ## Home Lab Setup
 
-### Docker Compose
+### Using deploy.sh (Recommended)
+
+```bash
+# Docker deployment
+./deploy/deploy.sh docker --generate-secret
+
+# With proof-of-work enabled
+./deploy/deploy.sh docker --generate-secret --pow-difficulty 8
+
+# Systemd deployment (requires root)
+sudo ./deploy/deploy.sh systemd --generate-secret
+```
+
+### Manual Docker Setup
 
 ```bash
 cd deploy/docker
-cp config.example.yaml config.yaml
-# Edit config.yaml
 
-# Generate secret
-openssl rand -base64 32 > secret.key
+# Generate secret (must be exactly 32 characters)
+openssl rand -hex 16 | tr -d '\n' > secret.key
+chmod 600 secret.key
+
+# Build image (if not already built)
+docker build -t hadlink:latest -f Dockerfile ../..
 
 # Start services
-docker-compose up -d
+docker compose up -d
+
+# Verify
+docker compose ps
+curl -X POST http://127.0.0.1:8443/api/create \
+  -H "X-API-Key: test" \
+  -d "url=https://example.com"
 ```
 
-### systemd
+### Manual systemd Setup
 
 ```bash
+# Install binary and library
+sudo cp hadlink /usr/local/bin/
+sudo cp libHadlink_Core.so /usr/local/lib/
+sudo ldconfig
+
 # Copy service files
 sudo cp deploy/systemd/*.service /etc/systemd/system/
+sudo mkdir -p /etc/hadlink
 
 # Create user and directories
-sudo useradd -r -s /bin/false hadlink
+sudo useradd -r -s /sbin/nologin hadlink
 sudo mkdir -p /var/lib/hadlink
 sudo chown hadlink:hadlink /var/lib/hadlink
 
-# Generate secret
-sudo openssl rand -base64 32 > /etc/hadlink/secret
-sudo chmod 600 /etc/hadlink/secret
+# Create environment file
+sudo cp deploy/systemd/hadlink.conf /etc/hadlink/
+
+# Generate secret and create secret.conf (secret must be exactly 32 characters)
+SECRET=$(openssl rand -hex 16)
+echo "HADLINK_SECRET=${SECRET}" | sudo tee /etc/hadlink/secret.conf > /dev/null
+sudo chmod 600 /etc/hadlink/secret.conf
 
 # Start services
-sudo systemctl enable --now hadlink-redirect
-sudo systemctl enable --now hadlink-shorten
+sudo systemctl daemon-reload
+sudo systemctl enable --now hadlink-shorten hadlink-redirect
 ```
 
 ## Testing the API

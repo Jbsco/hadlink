@@ -1,5 +1,5 @@
 # hadlink
-[![Build](https://github.com/Jbsco/hadlink/actions/workflows/build.yml/badge.svg)](https://github.com/Jbsco/hadlink/actions/workflows/build.yml)[![SPARK Proofs](https://github.com/Jbsco/hadlink/actions/workflows/prove.yml/badge.svg)](https://github.com/Jbsco/hadlink/actions/workflows/prove.yml)[![Integration Tests](https://github.com/Jbsco/hadlink/actions/workflows/integration.yml/badge.svg)](https://github.com/Jbsco/hadlink/actions/workflows/integration.yml)[![Tests](https://github.com/Jbsco/hadlink/actions/workflows/test.yml/badge.svg)](https://github.com/Jbsco/hadlink/actions/workflows/test.yml)[![Style Check](https://github.com/Jbsco/hadlink/actions/workflows/style.yml/badge.svg)](https://github.com/Jbsco/hadlink/actions/workflows/style.yml)
+[![Build](https://github.com/Jbsco/hadlink/actions/workflows/build.yml/badge.svg)](https://github.com/Jbsco/hadlink/actions/workflows/build.yml)[![SPARK Proofs](https://github.com/Jbsco/hadlink/actions/workflows/prove.yml/badge.svg)](https://github.com/Jbsco/hadlink/actions/workflows/prove.yml)[![Integration Tests](https://github.com/Jbsco/hadlink/actions/workflows/integration.yml/badge.svg)](https://github.com/Jbsco/hadlink/actions/workflows/integration.yml)[![Tests](https://github.com/Jbsco/hadlink/actions/workflows/test.yml/badge.svg)](https://github.com/Jbsco/hadlink/actions/workflows/test.yml)[![Style Check](https://github.com/Jbsco/hadlink/actions/workflows/style.yml/badge.svg)](https://github.com/Jbsco/hadlink/actions/workflows/style.yml)[![Docker](https://github.com/Jbsco/hadlink/actions/workflows/deploy-docker.yml/badge.svg)](https://github.com/Jbsco/hadlink/actions/workflows/deploy-docker.yml)[![Systemd](https://github.com/Jbsco/hadlink/actions/workflows/deploy-systemd.yml/badge.svg)](https://github.com/Jbsco/hadlink/actions/workflows/deploy-systemd.yml)
 
 **hadlink** is a self-hosted, high-assurance URL shortener designed for:
 
@@ -211,6 +211,74 @@ curl -I http://localhost:8080/Bmx9c8bI
 # HTTP/1.1 302 Found
 # Location: https://example.com/long/path
 ```
+
+---
+
+## Deployment
+
+Use the deployment script for quick setup:
+
+```bash
+# Show all options
+./deploy/deploy.sh --help
+
+# Docker deployment with default settings
+./deploy/deploy.sh docker --generate-secret
+
+# Docker with proof-of-work enabled
+./deploy/deploy.sh docker --generate-secret --pow-difficulty 8 --pow-difficulty-auth 2
+
+# Systemd deployment (requires root)
+sudo ./deploy/deploy.sh systemd --generate-secret
+```
+
+### Manual Docker Setup
+
+```bash
+cd deploy/docker
+
+# Generate secret key (must be exactly 32 characters)
+openssl rand -hex 16 | tr -d '\n' > secret.key
+chmod 600 secret.key
+
+# Build and start services
+docker build -t hadlink:latest -f Dockerfile ../..
+docker compose up -d
+
+# Test the services
+curl -X POST http://127.0.0.1:8443/api/create \
+  -H "X-API-Key: test" \
+  -d "url=https://example.com"
+```
+
+### Manual systemd Setup
+
+```bash
+# Install binary and library
+sudo cp hadlink /usr/local/bin/
+sudo cp libHadlink_Core.so /usr/local/lib/
+sudo ldconfig
+
+# Create user and directories
+sudo useradd -r -s /sbin/nologin hadlink
+sudo mkdir -p /var/lib/hadlink /etc/hadlink
+sudo chown hadlink:hadlink /var/lib/hadlink
+
+# Install service files
+sudo cp deploy/systemd/*.service /etc/systemd/system/
+sudo cp deploy/systemd/hadlink.conf /etc/hadlink/
+
+# Generate secret and create secret.conf (secret must be exactly 32 characters)
+SECRET=$(openssl rand -hex 16)
+echo "HADLINK_SECRET=${SECRET}" | sudo tee /etc/hadlink/secret.conf > /dev/null
+sudo chmod 600 /etc/hadlink/secret.conf
+
+# Start services
+sudo systemctl daemon-reload
+sudo systemctl enable --now hadlink-shorten hadlink-redirect
+```
+
+See [docs/examples/README.md](docs/examples/README.md) for detailed deployment guides.
 
 ---
 

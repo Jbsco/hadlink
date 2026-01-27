@@ -8,19 +8,38 @@ Type=simple
 ExecStart=/usr/local/bin/hadlink shorten
 User=hadlink
 Group=hadlink
-NoNewPrivileges=true
-ProtectSystem=strict
-ProtectHome=true
-ReadWritePaths=/var/lib/hadlink
-MemoryMax=128M
-Restart=on-failure
-RestartSec=5s
 
 # Environment
 Environment=HADLINK_STORAGE=/var/lib/hadlink/hadlink.db
 Environment=HADLINK_MODE=shorten
 Environment=HADLINK_PORT=8443
+EnvironmentFile=-/etc/hadlink/hadlink.conf
 EnvironmentFile=/etc/hadlink/secret.conf
+
+# Security hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictNamespaces=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+MemoryDenyWriteExecute=true
+LockPersonality=true
+
+# Read-write access to storage
+ReadWritePaths=/var/lib/hadlink
+
+# Resource limits
+MemoryMax=128M
+
+# Restart policy
+Restart=on-failure
+RestartSec=5s
 
 [Install]
 WantedBy=multi-user.target
