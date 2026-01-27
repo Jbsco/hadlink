@@ -43,8 +43,20 @@ jobs:
           cd deploy/docker
           mkdir -p data
           # Generate test secret (must be exactly 32 hex characters)
-          openssl rand -hex 16 | tr -d '\n' > secret.key
-          chmod 600 secret.key
+          TEST_SECRET=$(openssl rand -hex 16)
+          echo -n "$TEST_SECRET" > secret.key
+          chmod 644 secret.key
+
+          # Create override for CI that passes secret via env var
+          # (Docker secrets have permission issues in some CI environments)
+          cat > docker-compose.override.yml << EOF
+          services:
+            shorten:
+              entrypoint: ["/usr/local/bin/hadlink"]
+              command: ["shorten"]
+              environment:
+                - HADLINK_SECRET=${TEST_SECRET}
+          EOF
 
       - name: Start services
         run: |

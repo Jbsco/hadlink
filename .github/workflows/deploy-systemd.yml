@@ -5,12 +5,14 @@ on:
     branches: [main]
     paths:
       - 'deploy/systemd/**'
+      - 'deploy/docker/.env'
       - 'deploy/deploy.sh'
       - '.github/workflows/deploy-systemd.yml'
   pull_request:
     branches: [main]
     paths:
       - 'deploy/systemd/**'
+      - 'deploy/docker/.env'
       - 'deploy/deploy.sh'
       - '.github/workflows/deploy-systemd.yml'
   workflow_dispatch:
@@ -28,27 +30,26 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y systemd
 
-      - name: Validate hadlink-redirect.service
+      - name: Validate systemd service files
         run: |
-          echo "Validating hadlink-redirect.service..."
-          systemd-analyze verify deploy/systemd/hadlink-redirect.service 2>&1 || true
-          # Check for critical errors (ignore warnings about missing files)
-          if systemd-analyze verify deploy/systemd/hadlink-redirect.service 2>&1 | grep -E "^(Error|Failed)"; then
-            echo "Critical errors found in hadlink-redirect.service"
-            exit 1
-          fi
-          echo "hadlink-redirect.service is valid"
+          echo "Validating systemd service files..."
 
-      - name: Validate hadlink-shorten.service
-        run: |
-          echo "Validating hadlink-shorten.service..."
-          systemd-analyze verify deploy/systemd/hadlink-shorten.service 2>&1 || true
-          # Check for critical errors (ignore warnings about missing files)
-          if systemd-analyze verify deploy/systemd/hadlink-shorten.service 2>&1 | grep -E "^(Error|Failed)"; then
-            echo "Critical errors found in hadlink-shorten.service"
-            exit 1
-          fi
-          echo "hadlink-shorten.service is valid"
+          for service in deploy/systemd/*.service; do
+            echo "Checking $service..."
+
+            # Run verify and capture output, filtering expected warnings
+            # The binary doesn't exist in CI, so we filter that warning
+            output=$(systemd-analyze verify "$service" 2>&1 | grep -v "is not executable: No such file or directory" || true)
+
+            # Check for actual errors
+            if echo "$output" | grep -qE "^(Error|Failed)"; then
+              echo "Critical errors found in $service:"
+              echo "$output"
+              exit 1
+            fi
+
+            echo "$service is valid"
+          done
 
       - name: Check security hardening
         run: |

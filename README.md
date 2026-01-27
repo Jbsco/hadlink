@@ -1,5 +1,7 @@
 # hadlink
-[![Build](https://github.com/Jbsco/hadlink/actions/workflows/build.yml/badge.svg)](https://github.com/Jbsco/hadlink/actions/workflows/build.yml)[![SPARK Proofs](https://github.com/Jbsco/hadlink/actions/workflows/prove.yml/badge.svg)](https://github.com/Jbsco/hadlink/actions/workflows/prove.yml)[![Integration Tests](https://github.com/Jbsco/hadlink/actions/workflows/integration.yml/badge.svg)](https://github.com/Jbsco/hadlink/actions/workflows/integration.yml)[![Tests](https://github.com/Jbsco/hadlink/actions/workflows/test.yml/badge.svg)](https://github.com/Jbsco/hadlink/actions/workflows/test.yml)[![Style Check](https://github.com/Jbsco/hadlink/actions/workflows/style.yml/badge.svg)](https://github.com/Jbsco/hadlink/actions/workflows/style.yml)[![Docker](https://github.com/Jbsco/hadlink/actions/workflows/deploy-docker.yml/badge.svg)](https://github.com/Jbsco/hadlink/actions/workflows/deploy-docker.yml)[![Systemd](https://github.com/Jbsco/hadlink/actions/workflows/deploy-systemd.yml/badge.svg)](https://github.com/Jbsco/hadlink/actions/workflows/deploy-systemd.yml)
+[![SPARK Proofs](https://github.com/Jbsco/hadlink/actions/workflows/prove.yml/badge.svg)](https://github.com/Jbsco/hadlink/actions/workflows/prove.yml)[![Integration Tests](https://github.com/Jbsco/hadlink/actions/workflows/integration.yml/badge.svg)](https://github.com/Jbsco/hadlink/actions/workflows/integration.yml)[![Tests](https://github.com/Jbsco/hadlink/actions/workflows/test.yml/badge.svg)](https://github.com/Jbsco/hadlink/actions/workflows/test.yml)[![Style Check](https://github.com/Jbsco/hadlink/actions/workflows/style.yml/badge.svg)](https://github.com/Jbsco/hadlink/actions/workflows/style.yml)
+
+[![Build](https://github.com/Jbsco/hadlink/actions/workflows/build.yml/badge.svg)](https://github.com/Jbsco/hadlink/actions/workflows/build.yml)[![Docker](https://github.com/Jbsco/hadlink/actions/workflows/deploy-docker.yml/badge.svg)](https://github.com/Jbsco/hadlink/actions/workflows/deploy-docker.yml)[![Systemd](https://github.com/Jbsco/hadlink/actions/workflows/deploy-systemd.yml/badge.svg)](https://github.com/Jbsco/hadlink/actions/workflows/deploy-systemd.yml)
 
 **hadlink** is a self-hosted, high-assurance URL shortener designed for:
 
@@ -132,6 +134,16 @@ See [ROADMAP.md](docs/ROADMAP.md) for details.
 ## Quick Start
 
 ### Prerequisites
+
+**Docker** (recommended for deployment)
+
+- **[Docker](https://docs.docker.com/get-docker/)** with Compose plugin (Apache-2.0)
+  ```bash
+  ./deploy/deploy.sh docker start --generate-secret
+  ```
+  All build dependencies (redo, Stack, Alire) are containerized. Skip to [Deployment](#deployment).
+
+**Native build** (for development)
 
 1. **[dinkelk/redo](https://github.com/dinkelk/redo)** - Build system (MIT), chosen for correct dependency tracking, minimal complexity, and a Haskell implementation that aligns with the project's toolchain.
    ```bash
