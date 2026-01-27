@@ -214,6 +214,67 @@ sudo systemctl daemon-reload
 sudo systemctl enable --now hadlink-shorten hadlink-redirect
 ```
 
+## Development with Docker
+
+The default Docker configuration runs hadlink in production mode without access to source code. For development, you can bind-mount the source directory to enable code editing and rebuilding inside the container.
+
+### Quick Debugging Shell
+
+For debugging without source access:
+
+```bash
+./deploy/deploy.sh docker shell
+```
+
+This opens a shell in the container for inspecting logs, database, and runtime state. Changes do not persist.
+
+### Development Setup with Bind Mount
+
+To enable persistent development inside Docker:
+
+1. Create a `docker-compose.override.yml` in `deploy/docker/`:
+
+```yaml
+services:
+  shorten:
+    volumes:
+      - ../..:/hadlink:rw
+    # Use builder image for development tools
+    image: hadlink:builder
+```
+
+2. Build the builder image (includes Alire, Stack, redo):
+
+```bash
+cd deploy/docker
+docker build --target builder -t hadlink:builder -f Dockerfile ../..
+```
+
+3. Start with the override:
+
+```bash
+docker compose up -d
+./deploy/deploy.sh docker shell
+```
+
+4. Inside the shell, you can now edit and rebuild:
+
+```bash
+redo all          # Rebuild everything
+redo test         # Run tests
+redo prove        # Run SPARK proofs
+redo style        # Check code style
+```
+
+Changes to source files persist on the host. After rebuilding, restart the service:
+
+```bash
+exit
+./deploy/deploy.sh docker restart
+```
+
+**Note:** The bind mount gives the container write access to your source code. This is appropriate for development but should not be used in production.
+
 ## Testing the API
 
 ### Create a short link

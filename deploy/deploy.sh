@@ -38,11 +38,14 @@ Usage: $(basename "$0") <docker|systemd> <action> [options]
 Docker Actions:
   start       Start hadlink containers (default if no action specified)
   stop        Stop hadlink containers
+  restart     Stop and start containers
   remove      Remove hadlink containers and networks (add --remove-data for volumes)
+  shell       Open a shell in the shorten container for development
 
 Systemd Actions:
   start       Install and start hadlink services (default if no action specified)
   stop        Stop hadlink services
+  restart     Stop and start services
   update      Reload configuration and restart services
   uninstall   Remove hadlink services (add --remove-data to also remove database)
 
@@ -142,7 +145,6 @@ get_compose_cmd() {
 docker_start() {
     log_info "Starting Docker deployment..."
 
-    SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
     DOCKER_DIR="$SCRIPT_DIR/docker"
 
     if [ ! -f "$DOCKER_DIR/docker-compose.yml" ]; then
@@ -230,7 +232,6 @@ EOF
 docker_stop() {
     log_info "Stopping Docker containers..."
 
-    SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
     DOCKER_DIR="$SCRIPT_DIR/docker"
 
     if [ ! -f "$DOCKER_DIR/docker-compose.yml" ]; then
@@ -250,7 +251,6 @@ docker_stop() {
 docker_remove() {
     log_info "Removing Docker deployment..."
 
-    SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
     DOCKER_DIR="$SCRIPT_DIR/docker"
 
     if [ ! -f "$DOCKER_DIR/docker-compose.yml" ]; then
@@ -285,6 +285,72 @@ docker_remove() {
 
 }
 
+docker_shell() {
+    log_info "Opening shell in hadlink container..."
+
+    # Check if container is running
+    if ! docker ps --format '{{.Names}}' | grep -q '^hadlink-shorten-1$'; then
+        log_error "Container hadlink-shorten-1 is not running"
+        echo "Start the containers first: $0 docker start"
+        exit 1
+    fi
+
+    # Check if source code is bind-mounted (look for .git or spark-core which aren't in runtime image)
+    if docker exec hadlink-shorten-1 test -d /hadlink/.git 2>/dev/null; then
+        SOURCE_MOUNTED=true
+    else
+        SOURCE_MOUNTED=false
+    fi
+
+    echo ""
+    echo "=============================================="
+    echo "  hadlink Development Shell"
+    echo "=============================================="
+    echo ""
+
+    if [ "$SOURCE_MOUNTED" = true ]; then
+        echo "Source code is bind-mounted from host."
+        echo "Changes you make will persist on the host filesystem."
+        echo ""
+        echo "Development commands:"
+        echo "  redo              # Show build help"
+        echo "  redo all          # Rebuild everything"
+        echo "  redo test         # Run tests"
+        echo "  redo prove        # Run SPARK proofs"
+        echo "  redo style        # Check code style"
+        echo ""
+        echo "After rebuilding, restart the service:"
+        echo "  exit                        # Leave shell"
+        echo "  ./deploy.sh docker restart  # Restart containers"
+        echo ""
+    else
+        echo "Source code is NOT mounted (production image)."
+        echo "Changes will NOT persist after container restart."
+        echo ""
+        echo "This shell is useful for:"
+        echo "  - Debugging runtime issues"
+        echo "  - Inspecting the database: sqlite3 /data/hadlink.db"
+        echo "  - Checking logs and environment"
+        echo ""
+        echo "For development with persistent changes, add a bind mount:"
+        echo "  See docs/examples/README.md for development setup instructions."
+        echo ""
+    fi
+
+    echo "Type 'exit' to leave the shell."
+    echo "=============================================="
+    echo ""
+
+    # Open interactive shell
+    docker exec -it -w /hadlink hadlink-shorten-1 /bin/bash || \
+    docker exec -it -w /hadlink hadlink-shorten-1 /bin/sh
+}
+
+docker_restart() {
+    docker_stop
+    docker_start
+}
+
 # =============================================================================
 # Systemd Functions
 # =============================================================================
@@ -294,7 +360,6 @@ systemd_start() {
 
     log_info "Starting systemd deployment..."
 
-    SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
     SYSTEMD_DIR="$SCRIPT_DIR/systemd"
 
     # Set default data directory for systemd
@@ -442,6 +507,25 @@ systemd_stop() {
 
     log_info "Services stopped"
     echo "To start again: sudo $0 systemd start"
+}
+
+systemd_restart() {
+    check_root
+
+    log_info "Restarting hadlink services..."
+
+    systemctl restart hadlink-shorten hadlink-redirect
+
+    sleep 2
+    if systemctl is-active --quiet hadlink-redirect && systemctl is-active --quiet hadlink-shorten; then
+        log_info "Services restarted"
+    else
+        log_error "One or more services failed to restart"
+        echo "Check logs with:"
+        echo "  journalctl -u hadlink-redirect -n 50"
+        echo "  journalctl -u hadlink-shorten -n 50"
+        exit 1
+    fi
 }
 
 systemd_update() {
@@ -660,12 +744,18 @@ case "$DEPLOY_METHOD" in
             stop)
                 docker_stop
                 ;;
+            restart)
+                docker_restart
+                ;;
             remove)
                 docker_remove
                 ;;
+            shell)
+                docker_shell
+                ;;
             *)
                 log_error "Unknown docker action: $ACTION"
-                echo "Valid actions: start, stop, remove"
+                echo "Valid actions: start, stop, restart, remove, shell"
                 exit 1
                 ;;
         esac
@@ -678,6 +768,9 @@ case "$DEPLOY_METHOD" in
             stop)
                 systemd_stop
                 ;;
+            restart)
+                systemd_restart
+                ;;
             update)
                 systemd_update
                 ;;
@@ -686,7 +779,7 @@ case "$DEPLOY_METHOD" in
                 ;;
             *)
                 log_error "Unknown systemd action: $ACTION"
-                echo "Valid actions: start, stop, update, uninstall"
+                echo "Valid actions: start, stop, restart, update, uninstall"
                 exit 1
                 ;;
         esac
