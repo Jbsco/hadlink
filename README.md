@@ -223,13 +223,24 @@ Use the deployment script for quick setup:
 ./deploy/deploy.sh --help
 
 # Docker deployment with default settings
-./deploy/deploy.sh docker --generate-secret
+./deploy/deploy.sh docker start --generate-secret
 
 # Docker with proof-of-work enabled
-./deploy/deploy.sh docker --generate-secret --pow-difficulty 8 --pow-difficulty-auth 2
+./deploy/deploy.sh docker start --generate-secret --pow-difficulty 8 --pow-difficulty-auth 2
+
+# Stop/remove Docker deployment
+./deploy/deploy.sh docker stop
+./deploy/deploy.sh docker remove              # Keeps data volume
+./deploy/deploy.sh docker remove --remove-data  # Removes everything
 
 # Systemd deployment (requires root)
-sudo ./deploy/deploy.sh systemd --generate-secret
+sudo ./deploy/deploy.sh systemd start --generate-secret
+
+# Manage systemd deployment
+sudo ./deploy/deploy.sh systemd stop
+sudo ./deploy/deploy.sh systemd update        # Reload config and restart
+sudo ./deploy/deploy.sh systemd uninstall     # Removes services, keeps database
+sudo ./deploy/deploy.sh systemd uninstall --remove-data  # Removes everything
 ```
 
 ### Manual Docker Setup

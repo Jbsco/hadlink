@@ -1,11 +1,12 @@
 #!/bin/bash
 # hadlink deployment script
-# Usage: ./deploy.sh <docker|systemd> [options]
+# Usage: ./deploy.sh <docker|systemd> <action> [options]
 
 set -e
 
 # Default configuration
 DEPLOY_METHOD=""
+ACTION=""
 POW_DIFFICULTY=0
 POW_DIFFICULTY_AUTH=0
 RATE_LIMIT=10
@@ -15,6 +16,8 @@ SECRET_FILE=""
 GENERATE_SECRET=false
 DATA_DIR=""
 INSTALL_DIR="/usr/local"
+REMOVE_DATA=false
+FORCE=false
 
 # Colors for output
 RED='\033[0;31m'
@@ -24,11 +27,18 @@ NC='\033[0m' # No Color
 
 usage() {
     cat << EOF
-Usage: $(basename "$0") <docker|systemd> [options]
+Usage: $(basename "$0") <docker|systemd> <action> [options]
 
-Deployment Methods:
-  docker      Deploy using Docker and docker-compose
-  systemd     Deploy using systemd service units
+Docker Actions:
+  start       Start hadlink containers (default if no action specified)
+  stop        Stop hadlink containers
+  remove      Remove hadlink containers and networks (add --remove-data for volumes)
+
+Systemd Actions:
+  start       Install and start hadlink services (default if no action specified)
+  stop        Stop hadlink services
+  update      Reload configuration and restart services
+  uninstall   Remove hadlink services (add --remove-data to also remove database)
 
 Options:
   --pow-difficulty <N>      Proof-of-work difficulty for anonymous requests (default: 0 = disabled)
@@ -36,24 +46,27 @@ Options:
   --rate-limit <N>          Rate limit per IP per minute (default: 10)
   --shorten-port <PORT>     Port for shorten service (default: 8443)
   --redirect-port <PORT>    Port for redirect service (default: 8080)
-  --secret-file <PATH>      Path to secret key file (required for systemd, optional for docker)
+  --secret-file <PATH>      Path to secret key file
   --generate-secret         Generate a new secret key
-  --data-dir <PATH>         Data directory for database (default: ./data for docker, /var/lib/hadlink for systemd)
-  --install-dir <PATH>      Installation directory for binaries (systemd only, default: /usr/local)
+  --data-dir <PATH>         Data directory (default: ./data for docker, /var/lib/hadlink for systemd)
+  --install-dir <PATH>      Binary installation directory (systemd only, default: /usr/local)
+  --remove-data             Also remove database/volumes (for remove/uninstall actions)
+  --force                   Skip confirmation prompts
   -h, --help                Show this help message
 
 Examples:
-  # Docker deployment with default settings
-  ./deploy.sh docker --generate-secret
+  # Docker
+  ./deploy.sh docker start --generate-secret
+  ./deploy.sh docker stop
+  ./deploy.sh docker remove
+  ./deploy.sh docker remove --remove-data    # Also removes volumes
 
-  # Docker with proof-of-work enabled
-  ./deploy.sh docker --generate-secret --pow-difficulty 8 --pow-difficulty-auth 2
-
-  # Systemd deployment
-  sudo ./deploy.sh systemd --generate-secret --data-dir /var/lib/hadlink
-
-  # Systemd with custom ports and existing secret
-  sudo ./deploy.sh systemd --secret-file /etc/hadlink/secret.key --shorten-port 9443
+  # Systemd
+  sudo ./deploy.sh systemd start --generate-secret
+  sudo ./deploy.sh systemd stop
+  sudo ./deploy.sh systemd update
+  sudo ./deploy.sh systemd uninstall
+  sudo ./deploy.sh systemd uninstall --remove-data  # Also removes database
 
 EOF
     exit 1
@@ -71,9 +84,26 @@ log_error() {
     echo -e "${RED}[ERROR]${NC} $1"
 }
 
+confirm() {
+    if [ "$FORCE" = true ]; then
+        return 0
+    fi
+    local prompt="$1"
+    echo -e "${YELLOW}$prompt${NC}"
+    read -r -p "Continue? [y/N] " response
+    case "$response" in
+        [yY][eE][sS]|[yY])
+            return 0
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+}
+
 check_root() {
     if [ "$EUID" -ne 0 ]; then
-        log_error "Systemd deployment requires root privileges"
+        log_error "This action requires root privileges"
         echo "Please run with: sudo $0 $*"
         exit 1
     fi
@@ -88,7 +118,22 @@ generate_secret() {
     log_info "Secret key generated successfully (32 hex chars)"
 }
 
-deploy_docker() {
+get_compose_cmd() {
+    if docker compose version >/dev/null 2>&1; then
+        echo "docker compose"
+    elif command -v docker-compose >/dev/null 2>&1; then
+        echo "docker-compose"
+    else
+        log_error "Neither 'docker compose' nor 'docker-compose' found"
+        exit 1
+    fi
+}
+
+# =============================================================================
+# Docker Functions
+# =============================================================================
+
+docker_start() {
     log_info "Starting Docker deployment..."
 
     SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -132,15 +177,7 @@ deploy_docker() {
         fi
     fi
 
-    # Detect docker compose command (v2 uses 'docker compose', v1 uses 'docker-compose')
-    if docker compose version >/dev/null 2>&1; then
-        COMPOSE_CMD="docker compose"
-    elif command -v docker-compose >/dev/null 2>&1; then
-        COMPOSE_CMD="docker-compose"
-    else
-        log_error "Neither 'docker compose' nor 'docker-compose' found"
-        exit 1
-    fi
+    COMPOSE_CMD=$(get_compose_cmd)
     log_info "Using compose command: $COMPOSE_CMD"
 
     # Check if image exists, build if not
@@ -185,7 +222,71 @@ EOF
     echo "    -d 'url=https://example.com'"
 }
 
-deploy_systemd() {
+docker_stop() {
+    log_info "Stopping Docker containers..."
+
+    SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+    DOCKER_DIR="$SCRIPT_DIR/docker"
+
+    if [ ! -f "$DOCKER_DIR/docker-compose.yml" ]; then
+        log_error "docker-compose.yml not found at $DOCKER_DIR"
+        exit 1
+    fi
+
+    cd "$DOCKER_DIR"
+    COMPOSE_CMD=$(get_compose_cmd)
+
+    $COMPOSE_CMD stop
+
+    log_info "Containers stopped"
+    echo "To start again: $0 docker start"
+}
+
+docker_remove() {
+    log_info "Removing Docker deployment..."
+
+    SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+    DOCKER_DIR="$SCRIPT_DIR/docker"
+
+    if [ ! -f "$DOCKER_DIR/docker-compose.yml" ]; then
+        log_error "docker-compose.yml not found at $DOCKER_DIR"
+        exit 1
+    fi
+
+    cd "$DOCKER_DIR"
+    COMPOSE_CMD=$(get_compose_cmd)
+
+    echo "This will remove:"
+    echo "  - hadlink containers (hadlink-shorten-1, hadlink-redirect-1)"
+    echo "  - hadlink networks (hadlink_internal, hadlink_public)"
+    if [ "$REMOVE_DATA" = true ]; then
+        echo "  - hadlink volume (hadlink_hadlink-data) [DATABASE WILL BE DELETED]"
+    fi
+    echo ""
+
+    if ! confirm "Remove hadlink Docker deployment?"; then
+        log_info "Cancelled"
+        exit 0
+    fi
+
+    if [ "$REMOVE_DATA" = true ]; then
+        $COMPOSE_CMD down -v
+        log_info "Containers, networks, and volumes removed"
+    else
+        $COMPOSE_CMD down
+        log_info "Containers and networks removed (volume preserved)"
+        echo "To also remove the data volume, use: $0 docker remove --remove-data"
+    fi
+
+    # Clean up override file
+    rm -f docker-compose.override.yml
+}
+
+# =============================================================================
+# Systemd Functions
+# =============================================================================
+
+systemd_start() {
     check_root
 
     log_info "Starting systemd deployment..."
@@ -233,12 +334,14 @@ deploy_systemd() {
         generate_secret "/etc/hadlink/secret.key"
         SECRET_FILE="/etc/hadlink/secret.key"
     elif [ -z "$SECRET_FILE" ]; then
-        if [ ! -f "/etc/hadlink/secret.key" ]; then
-            log_error "No secret file specified and /etc/hadlink/secret.key does not exist"
+        if [ ! -f "/etc/hadlink/secret.key" ] && [ ! -f "/etc/hadlink/secret.conf" ]; then
+            log_error "No secret file specified and no existing secret found"
             echo "Use --generate-secret or --secret-file <path>"
             exit 1
         fi
-        SECRET_FILE="/etc/hadlink/secret.key"
+        if [ -f "/etc/hadlink/secret.key" ]; then
+            SECRET_FILE="/etc/hadlink/secret.key"
+        fi
     else
         if [ ! -f "$SECRET_FILE" ]; then
             log_error "Secret file not found: $SECRET_FILE"
@@ -262,9 +365,9 @@ HADLINK_STORAGE=${DATA_DIR}/hadlink.db
 EOF
 
     # Create secret configuration for shorten service
-    # Read the secret from the key file and put it in the environment file
-    SECRET_VALUE=$(cat /etc/hadlink/secret.key)
-    cat > /etc/hadlink/secret.conf << EOF
+    if [ -f "/etc/hadlink/secret.key" ]; then
+        SECRET_VALUE=$(cat /etc/hadlink/secret.key)
+        cat > /etc/hadlink/secret.conf << EOF
 # hadlink secret configuration
 # Generated by deploy.sh on $(date)
 
@@ -273,9 +376,10 @@ HADLINK_POW_DIFFICULTY=${POW_DIFFICULTY}
 HADLINK_POW_DIFFICULTY_AUTH=${POW_DIFFICULTY_AUTH}
 HADLINK_RATE_LIMIT=${RATE_LIMIT}
 EOF
-    chmod 600 /etc/hadlink/secret.conf
-    # Remove the key file as it's now in secret.conf
-    rm -f /etc/hadlink/secret.key
+        chmod 600 /etc/hadlink/secret.conf
+        # Remove the key file as it's now in secret.conf
+        rm -f /etc/hadlink/secret.key
+    fi
 
     # Install service files with custom ports
     log_info "Installing service files..."
@@ -326,12 +430,146 @@ EOF
     fi
 }
 
+systemd_stop() {
+    check_root
+
+    log_info "Stopping hadlink services..."
+
+    systemctl stop hadlink-redirect hadlink-shorten 2>/dev/null || true
+
+    log_info "Services stopped"
+    echo "To start again: sudo $0 systemd start"
+}
+
+systemd_update() {
+    check_root
+
+    log_info "Updating hadlink services..."
+
+    # Reload systemd in case service files changed
+    systemctl daemon-reload
+
+    # Restart services
+    systemctl restart hadlink-shorten hadlink-redirect
+
+    sleep 2
+    if systemctl is-active --quiet hadlink-redirect && systemctl is-active --quiet hadlink-shorten; then
+        log_info "Services updated and running"
+    else
+        log_error "One or more services failed to restart"
+        echo "Check logs with:"
+        echo "  journalctl -u hadlink-redirect -n 50"
+        echo "  journalctl -u hadlink-shorten -n 50"
+        exit 1
+    fi
+}
+
+systemd_uninstall() {
+    check_root
+
+    log_info "Preparing to uninstall hadlink services..."
+
+    # Determine what exists and will be removed
+    echo ""
+    echo "The following hadlink files will be removed:"
+    echo ""
+
+    # Service files
+    if [ -f /etc/systemd/system/hadlink-redirect.service ]; then
+        echo "  /etc/systemd/system/hadlink-redirect.service"
+    fi
+    if [ -f /etc/systemd/system/hadlink-shorten.service ]; then
+        echo "  /etc/systemd/system/hadlink-shorten.service"
+    fi
+
+    # Config directory
+    if [ -d /etc/hadlink ]; then
+        echo "  /etc/hadlink/ (configuration directory)"
+    fi
+
+    # Data directory (only if --remove-data)
+    if [ "$REMOVE_DATA" = true ]; then
+        if [ -z "$DATA_DIR" ]; then
+            DATA_DIR="/var/lib/hadlink"
+        fi
+        if [ -d "$DATA_DIR" ]; then
+            echo "  $DATA_DIR/ (DATABASE WILL BE DELETED)"
+        fi
+    fi
+
+    echo ""
+    echo "The following will NOT be removed (remove manually if desired):"
+    echo "  - /usr/local/bin/hadlink (binary)"
+    echo "  - /usr/local/lib/libHadlink_Core.so (library)"
+    echo "  - hadlink user account"
+    if [ "$REMOVE_DATA" != true ]; then
+        if [ -z "$DATA_DIR" ]; then
+            DATA_DIR="/var/lib/hadlink"
+        fi
+        echo "  - $DATA_DIR/ (database - use --remove-data to include)"
+    fi
+    echo ""
+
+    if ! confirm "Proceed with uninstall?"; then
+        log_info "Cancelled"
+        exit 0
+    fi
+
+    # Stop services
+    log_info "Stopping services..."
+    systemctl stop hadlink-redirect hadlink-shorten 2>/dev/null || true
+
+    # Disable services
+    log_info "Disabling services..."
+    systemctl disable hadlink-redirect hadlink-shorten 2>/dev/null || true
+
+    # Remove service files (only these specific files)
+    log_info "Removing service files..."
+    rm -f /etc/systemd/system/hadlink-redirect.service
+    rm -f /etc/systemd/system/hadlink-shorten.service
+
+    # Reload systemd
+    systemctl daemon-reload
+
+    # Remove config directory
+    if [ -d /etc/hadlink ]; then
+        log_info "Removing configuration directory..."
+        rm -rf /etc/hadlink
+    fi
+
+    # Remove data directory if requested
+    if [ "$REMOVE_DATA" = true ]; then
+        if [ -z "$DATA_DIR" ]; then
+            DATA_DIR="/var/lib/hadlink"
+        fi
+        if [ -d "$DATA_DIR" ]; then
+            log_info "Removing data directory..."
+            rm -rf "$DATA_DIR"
+        fi
+    fi
+
+    log_info "Uninstall complete"
+    echo ""
+    echo "To fully remove hadlink, also run:"
+    echo "  sudo rm -f /usr/local/bin/hadlink"
+    echo "  sudo rm -f /usr/local/lib/libHadlink_Core.so"
+    echo "  sudo ldconfig"
+    echo "  sudo userdel hadlink"
+    if [ "$REMOVE_DATA" != true ]; then
+        echo "  sudo rm -rf /var/lib/hadlink  # (database)"
+    fi
+}
+
+# =============================================================================
+# Main
+# =============================================================================
+
 # Parse arguments
 if [ $# -eq 0 ]; then
     usage
 fi
 
-# Handle help flag before deployment method
+# Handle help flag before anything else
 case "$1" in
     -h|--help)
         usage
@@ -341,6 +579,18 @@ esac
 DEPLOY_METHOD="$1"
 shift
 
+# Check for action (second positional argument)
+if [ $# -gt 0 ] && [[ ! "$1" =~ ^-- ]]; then
+    ACTION="$1"
+    shift
+fi
+
+# Default action is 'start'
+if [ -z "$ACTION" ]; then
+    ACTION="start"
+fi
+
+# Parse remaining options
 while [ $# -gt 0 ]; do
     case "$1" in
         --pow-difficulty)
@@ -379,6 +629,14 @@ while [ $# -gt 0 ]; do
             INSTALL_DIR="$2"
             shift 2
             ;;
+        --remove-data)
+            REMOVE_DATA=true
+            shift
+            ;;
+        --force)
+            FORCE=true
+            shift
+            ;;
         -h|--help)
             usage
             ;;
@@ -389,13 +647,46 @@ while [ $# -gt 0 ]; do
     esac
 done
 
-# Validate deployment method
+# Execute the appropriate function
 case "$DEPLOY_METHOD" in
     docker)
-        deploy_docker
+        case "$ACTION" in
+            start)
+                docker_start
+                ;;
+            stop)
+                docker_stop
+                ;;
+            remove)
+                docker_remove
+                ;;
+            *)
+                log_error "Unknown docker action: $ACTION"
+                echo "Valid actions: start, stop, remove"
+                exit 1
+                ;;
+        esac
         ;;
     systemd)
-        deploy_systemd
+        case "$ACTION" in
+            start)
+                systemd_start
+                ;;
+            stop)
+                systemd_stop
+                ;;
+            update)
+                systemd_update
+                ;;
+            uninstall)
+                systemd_uninstall
+                ;;
+            *)
+                log_error "Unknown systemd action: $ACTION"
+                echo "Valid actions: start, stop, update, uninstall"
+                exit 1
+                ;;
+        esac
         ;;
     *)
         log_error "Unknown deployment method: $DEPLOY_METHOD"
