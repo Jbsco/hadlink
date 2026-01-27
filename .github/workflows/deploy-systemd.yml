@@ -101,13 +101,47 @@ jobs:
           fi
           echo "deploy.sh syntax is valid"
 
+      - name: Validate Docker .env file
+        run: |
+          echo "Validating deploy/docker/.env..."
+          if [ ! -f deploy/docker/.env ]; then
+            echo "Missing deploy/docker/.env file"
+            exit 1
+          fi
+          # Check that required variables are present
+          REQUIRED_VARS=(
+            "REDIRECT_PORT"
+            "SHORTEN_PORT"
+            "POW_DIFFICULTY"
+            "POW_DIFFICULTY_AUTH"
+            "RATE_LIMIT"
+          )
+          for var in "${REQUIRED_VARS[@]}"; do
+            if ! grep -q "^${var}=" deploy/docker/.env; then
+              echo "Missing required variable: $var in deploy/docker/.env"
+              exit 1
+            fi
+          done
+          # Check that the file can be sourced
+          if ! bash -n deploy/docker/.env 2>&1; then
+            echo "Invalid syntax in deploy/docker/.env"
+            exit 1
+          fi
+          echo "deploy/docker/.env is valid"
+
       - name: Summary
         run: |
-          echo "=== Systemd Unit Validation Summary ==="
-          echo "All service files validated successfully"
+          echo "=== Deployment Validation Summary ==="
+          echo "All files validated successfully"
           echo ""
           echo "Service files:"
           ls -la deploy/systemd/*.service
           echo ""
-          echo "Configuration files:"
+          echo "Systemd configuration:"
           ls -la deploy/systemd/*.conf
+          echo ""
+          echo "Docker configuration:"
+          ls -la deploy/docker/.env deploy/docker/docker-compose.yml
+          echo ""
+          echo "Deploy script:"
+          ls -la deploy/deploy.sh

@@ -42,8 +42,8 @@ jobs:
         run: |
           cd deploy/docker
           mkdir -p data
-          # Generate test secret
-          echo "test-secret-key-for-ci" > secret.key
+          # Generate test secret (must be exactly 32 hex characters)
+          openssl rand -hex 16 | tr -d '\n' > secret.key
           chmod 600 secret.key
 
       - name: Start services
