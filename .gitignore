@@ -31,6 +31,7 @@ secret.key
 secrets/
 config.yaml
 .env
+!deploy/docker/.env
 
 # Storage
 *.db
@@ -57,6 +58,7 @@ target/
 
 # Deployment
 deploy/docker/data/
+deploy/docker/docker-compose.override.yml
 
 # redo build system
 .redo/

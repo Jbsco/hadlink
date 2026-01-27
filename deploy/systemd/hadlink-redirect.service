@@ -8,20 +8,38 @@ Type=simple
 ExecStart=/usr/local/bin/hadlink redirect
 User=hadlink
 Group=hadlink
-NoNewPrivileges=true
-PrivateTmp=true
-ProtectSystem=strict
-ProtectHome=true
-ReadOnlyPaths=/var/lib/hadlink
-MemoryMax=64M
-CPUQuota=20%
-Restart=on-failure
-RestartSec=5s
 
 # Environment
 Environment=HADLINK_STORAGE=/var/lib/hadlink/hadlink.db
 Environment=HADLINK_MODE=redirect
 Environment=HADLINK_PORT=8080
+EnvironmentFile=-/etc/hadlink/hadlink.conf
+
+# Security hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictNamespaces=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+MemoryDenyWriteExecute=true
+LockPersonality=true
+
+# Read-only access to storage
+ReadOnlyPaths=/var/lib/hadlink
+
+# Resource limits
+MemoryMax=64M
+CPUQuota=20%
+
+# Restart policy
+Restart=on-failure
+RestartSec=5s
 
 [Install]
 WantedBy=multi-user.target

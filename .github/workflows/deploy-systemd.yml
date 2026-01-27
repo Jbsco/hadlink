@@ -1,0 +1,148 @@
+name: Systemd Validation
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'deploy/systemd/**'
+      - 'deploy/docker/.env'
+      - 'deploy/deploy.sh'
+      - '.github/workflows/deploy-systemd.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'deploy/systemd/**'
+      - 'deploy/docker/.env'
+      - 'deploy/deploy.sh'
+      - '.github/workflows/deploy-systemd.yml'
+  workflow_dispatch:
+
+jobs:
+  validate-systemd-units:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install systemd tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y systemd
+
+      - name: Validate systemd service files
+        run: |
+          echo "Validating systemd service files..."
+
+          for service in deploy/systemd/*.service; do
+            echo "Checking $service..."
+
+            # Run verify and capture output, filtering expected warnings
+            # The binary doesn't exist in CI, so we filter that warning
+            output=$(systemd-analyze verify "$service" 2>&1 | grep -v "is not executable: No such file or directory" || true)
+
+            # Check for actual errors
+            if echo "$output" | grep -qE "^(Error|Failed)"; then
+              echo "Critical errors found in $service:"
+              echo "$output"
+              exit 1
+            fi
+
+            echo "$service is valid"
+          done
+
+      - name: Check security hardening
+        run: |
+          echo "Checking security directives in service files..."
+
+          # List of required security directives
+          REQUIRED_DIRECTIVES=(
+            "NoNewPrivileges=true"
+            "ProtectSystem=strict"
+            "ProtectHome=true"
+            "PrivateTmp=true"
+            "PrivateDevices=true"
+            "ProtectKernelTunables=true"
+            "ProtectKernelModules=true"
+            "ProtectControlGroups=true"
+            "RestrictNamespaces=true"
+            "RestrictRealtime=true"
+            "RestrictSUIDSGID=true"
+            "MemoryDenyWriteExecute=true"
+            "LockPersonality=true"
+          )
+
+          for service in deploy/systemd/*.service; do
+            echo "Checking $service..."
+            for directive in "${REQUIRED_DIRECTIVES[@]}"; do
+              if ! grep -q "$directive" "$service"; then
+                echo "Missing security directive: $directive in $service"
+                exit 1
+              fi
+            done
+            echo "All security directives present in $service"
+          done
+
+      - name: Validate environment file syntax
+        run: |
+          echo "Validating hadlink.conf..."
+          # Check that the file is valid shell syntax (can be sourced)
+          if ! bash -n deploy/systemd/hadlink.conf 2>&1; then
+            echo "Invalid syntax in hadlink.conf"
+            exit 1
+          fi
+          echo "hadlink.conf syntax is valid"
+
+      - name: Validate deploy.sh syntax
+        run: |
+          echo "Validating deploy.sh..."
+          if ! bash -n deploy/deploy.sh 2>&1; then
+            echo "Invalid syntax in deploy.sh"
+            exit 1
+          fi
+          echo "deploy.sh syntax is valid"
+
+      - name: Validate Docker .env file
+        run: |
+          echo "Validating deploy/docker/.env..."
+          if [ ! -f deploy/docker/.env ]; then
+            echo "Missing deploy/docker/.env file"
+            exit 1
+          fi
+          # Check that required variables are present
+          REQUIRED_VARS=(
+            "REDIRECT_PORT"
+            "SHORTEN_PORT"
+            "POW_DIFFICULTY"
+            "POW_DIFFICULTY_AUTH"
+            "RATE_LIMIT"
+          )
+          for var in "${REQUIRED_VARS[@]}"; do
+            if ! grep -q "^${var}=" deploy/docker/.env; then
+              echo "Missing required variable: $var in deploy/docker/.env"
+              exit 1
+            fi
+          done
+          # Check that the file can be sourced
+          if ! bash -n deploy/docker/.env 2>&1; then
+            echo "Invalid syntax in deploy/docker/.env"
+            exit 1
+          fi
+          echo "deploy/docker/.env is valid"
+
+      - name: Summary
+        run: |
+          echo "=== Deployment Validation Summary ==="
+          echo "All files validated successfully"
+          echo ""
+          echo "Service files:"
+          ls -la deploy/systemd/*.service
+          echo ""
+          echo "Systemd configuration:"
+          ls -la deploy/systemd/*.conf
+          echo ""
+          echo "Docker configuration:"
+          ls -la deploy/docker/.env deploy/docker/docker-compose.yml
+          echo ""
+          echo "Deploy script:"
+          ls -la deploy/deploy.sh
