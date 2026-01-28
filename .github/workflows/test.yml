@@ -77,8 +77,8 @@ jobs:
       - name: Run tests
         id: test
         run: |
+          set -o pipefail
           redo -x -v test 2>&1 | tee test-output.log
-          echo "exit_code=${PIPESTATUS[0]}" >> $GITHUB_OUTPUT
 
       - name: Upload test log
         uses: actions/upload-artifact@v4

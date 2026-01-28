@@ -52,7 +52,7 @@ app config store limiter req respond =
 createHandler :: Config -> SQLiteStore -> RateLimiter -> Application
 createHandler config store limiter req respond = do
   -- Extract client IP and check rate limit
-  let clientIP = getClientIP req
+  let clientIP = getClientIP config req
   allowed <- checkLimit limiter clientIP
   if not allowed
     then respond $ errorResponse status429 "Rate limit exceeded"
@@ -168,16 +168,29 @@ validationErrorMessage InvalidCharacters = "Invalid characters in URL"
 validationErrorMessage (ParseError msg) = "Parse error: " <> msg
 
 -- | Extract client IP from request
--- Checks X-Forwarded-For header first (for reverse proxy setups), then falls back to socket address
-getClientIP :: Request -> ClientIP
-getClientIP req =
-  case lookup "X-Forwarded-For" (requestHeaders req) of
-    Just xff ->
-      -- X-Forwarded-For may contain multiple IPs; take the first (original client)
-      let firstIP = BS.takeWhile (/= 44) xff  -- 44 = comma
-      in ClientIP firstIP
-    Nothing ->
-      -- Fall back to remote host from socket
+-- Only checks X-Forwarded-For when cfgTrustProxy is True (behind trusted reverse proxy)
+-- When disabled, always uses the direct socket address to prevent header spoofing attacks
+getClientIP :: Config -> Request -> ClientIP
+getClientIP config req
+  | cfgTrustProxy config =
+      -- Trust proxy mode: use X-Forwarded-For if present
+      case lookup "X-Forwarded-For" (requestHeaders req) of
+        Just xff ->
+          -- X-Forwarded-For may contain multiple IPs; take the first (original client)
+          -- Validate it looks like an IP address (basic check for alphanumeric, dots, colons)
+          let firstIP = BS.takeWhile (/= 44) xff  -- 44 = comma
+              isValidIPChar c = (c >= 48 && c <= 57)   -- 0-9
+                             || (c >= 65 && c <= 70)   -- A-F (for IPv6)
+                             || (c >= 97 && c <= 102)  -- a-f (for IPv6)
+                             || c == 46                -- .
+                             || c == 58                -- : (for IPv6)
+          in if BS.all isValidIPChar firstIP && not (BS.null firstIP)
+             then ClientIP firstIP
+             else ClientIP $ sockAddrToBS (remoteHost req)  -- Invalid format, use socket
+        Nothing ->
+          ClientIP $ sockAddrToBS (remoteHost req)
+  | otherwise =
+      -- Direct mode: always use socket address (prevents header spoofing)
       ClientIP $ sockAddrToBS (remoteHost req)
 
 -- | Convert socket address to ByteString for use as client identifier

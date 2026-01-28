@@ -92,33 +92,78 @@ package body Core is
 
    ---------------------------------------------------------------------------
    --  Helper: Check if host string is a private IP address
+   --  Covers IPv4 private ranges, IPv6 private ranges, and special addresses
    ---------------------------------------------------------------------------
    function Is_Private_IP (Host : String) return Boolean
    with Pre => Host'Length >= 1 and then
                Host'First >= 1 and then
                Host'Last < Integer'Last - 1
    is
+      --  Helper to get host content (strips IPv6 brackets if present)
+      function Get_Host_Content return String is
+      begin
+         if Host'Length >= 2 and then
+            Host (Host'First) = '[' and then
+            Host (Host'Last) = ']'
+         then
+            return Host (Host'First + 1 .. Host'Last - 1);
+         else
+            return Host;
+         end if;
+      end Get_Host_Content;
+
+      H : constant String := Get_Host_Content;
    begin
-      --  Check for localhost
-      if Host = "localhost" then
+      --  Check for localhost variants
+      if H = "localhost" then
          return True;
       end if;
 
-      --  Check for common private prefixes
-      if Host'Length >= 3 then
+      --  Check for IPv6 loopback (::1)
+      if H = "::1" then
+         return True;
+      end if;
+
+      --  Check for 0.0.0.0 (can represent localhost on some systems)
+      if H = "0.0.0.0" then
+         return True;
+      end if;
+
+      --  Check for IPv6 all-zeros (::)
+      if H = "::" then
+         return True;
+      end if;
+
+      --  Check for IPv4 private prefixes
+      if H'Length >= 3 then
          declare
-            Prefix3 : constant String := Host (Host'First .. Host'First + 2);
+            Prefix3 : constant String := H (H'First .. H'First + 2);
          begin
+            --  10.x.x.x (Class A private)
+            --  127.x.x.x (loopback)
             if Prefix3 = "10." or else Prefix3 = "127" then
                return True;
             end if;
          end;
       end if;
 
-      if Host'Length >= 8 then
+      --  Check for IPv4 link-local (169.254.x.x)
+      if H'Length >= 8 then
          declare
-            Prefix7 : constant String := Host (Host'First .. Host'First + 6);
+            Prefix8 : constant String := H (H'First .. H'First + 7);
          begin
+            if Prefix8 = "169.254." then
+               return True;
+            end if;
+         end;
+      end if;
+
+      if H'Length >= 8 then
+         declare
+            Prefix7 : constant String := H (H'First .. H'First + 6);
+         begin
+            --  192.168.x.x (Class C private)
+            --  172.16-31.x.x (Class B private)
             if Prefix7 = "192.168" or else
                Prefix7 = "172.16." or else Prefix7 = "172.17." or else
                Prefix7 = "172.18." or else Prefix7 = "172.19." or else
@@ -130,6 +175,112 @@ package body Core is
                Prefix7 = "172.30." or else Prefix7 = "172.31."
             then
                return True;
+            end if;
+         end;
+      end if;
+
+      --  Check for IPv6 private ranges
+      if H'Length >= 4 then
+         declare
+            Prefix4 : constant String := H (H'First .. H'First + 3);
+         begin
+            --  fe80:: (link-local, fe80::/10)
+            if Prefix4 = "fe80" or else Prefix4 = "FE80" or else
+               Prefix4 = "Fe80" or else Prefix4 = "fE80"
+            then
+               return True;
+            end if;
+         end;
+      end if;
+
+      --  fc00::/7 - Unique Local Addresses (ULA)
+      --  This covers fc00:: through fdff::
+      --  Must check for hex digit or colon after prefix to avoid matching
+      --  domain names like fc.example.com
+      if H'Length >= 3 then
+         declare
+            Prefix2 : constant String := H (H'First .. H'First + 1);
+            Next_Ch : constant Character := H (H'First + 2);
+            Is_Hex  : constant Boolean :=
+              Next_Ch in '0' .. '9' | 'a' .. 'f' | 'A' .. 'F';
+            Is_Colon : constant Boolean := Next_Ch = ':';
+         begin
+            if (Prefix2 = "fc" or else Prefix2 = "FC" or else
+                Prefix2 = "Fc" or else Prefix2 = "fC" or else
+                Prefix2 = "fd" or else Prefix2 = "FD" or else
+                Prefix2 = "Fd" or else Prefix2 = "fD") and then
+               (Is_Hex or else Is_Colon)
+            then
+               return True;
+            end if;
+         end;
+      end if;
+
+      --  Check for IPv6-mapped IPv4 (::ffff:x.x.x.x)
+      --  These embed IPv4 addresses in IPv6 format
+      --  Minimum length: "::ffff:" (7) + "0.0.0.0" (7) = 14
+      if H'Length >= 14 then
+         declare
+            Prefix7 : constant String := H (H'First .. H'First + 6);
+         begin
+            if Prefix7 = "::ffff:" or else Prefix7 = "::FFFF:" then
+               --  Check embedded IPv4 for private ranges
+               --  (inline check, no recursion needed)
+               --  The IPv4 part starts at H'First + 7
+               declare
+                  IPv4_Start : constant Natural := H'First + 7;
+               begin
+                  --  Check for 127.x.x.x or 10.x.x.x
+                  if H'Last >= IPv4_Start + 2 then
+                     declare
+                        IPv4_Prefix3 : constant String :=
+                          H (IPv4_Start .. IPv4_Start + 2);
+                     begin
+                        if IPv4_Prefix3 = "10." or else
+                           IPv4_Prefix3 = "127"
+                        then
+                           return True;
+                        end if;
+                     end;
+                  end if;
+
+                  --  Check for 192.168.x.x or 172.16-31.x.x or 169.254.x.x
+                  if H'Last >= IPv4_Start + 6 then
+                     declare
+                        IPv4_Prefix7 : constant String :=
+                          H (IPv4_Start .. IPv4_Start + 6);
+                     begin
+                        if IPv4_Prefix7 = "192.168" or else
+                           IPv4_Prefix7 = "169.254" or else
+                           IPv4_Prefix7 = "172.16." or else
+                           IPv4_Prefix7 = "172.17." or else
+                           IPv4_Prefix7 = "172.18." or else
+                           IPv4_Prefix7 = "172.19." or else
+                           IPv4_Prefix7 = "172.20." or else
+                           IPv4_Prefix7 = "172.21." or else
+                           IPv4_Prefix7 = "172.22." or else
+                           IPv4_Prefix7 = "172.23." or else
+                           IPv4_Prefix7 = "172.24." or else
+                           IPv4_Prefix7 = "172.25." or else
+                           IPv4_Prefix7 = "172.26." or else
+                           IPv4_Prefix7 = "172.27." or else
+                           IPv4_Prefix7 = "172.28." or else
+                           IPv4_Prefix7 = "172.29." or else
+                           IPv4_Prefix7 = "172.30." or else
+                           IPv4_Prefix7 = "172.31."
+                        then
+                           return True;
+                        end if;
+                     end;
+                  end if;
+
+                  --  Check for 0.0.0.0
+                  if H'Last >= IPv4_Start + 6 and then
+                     H (IPv4_Start .. IPv4_Start + 6) = "0.0.0.0"
+                  then
+                     return True;
+                  end if;
+               end;
             end if;
          end;
       end if;

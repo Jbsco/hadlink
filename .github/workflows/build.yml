@@ -72,14 +72,15 @@ jobs:
           echo "$HOME/redo/bin" >> $GITHUB_PATH
 
       - name: Clean build
-        run: redo -x -v clean 2>&1 | tee clean-output.log
+        run: |
+          set -o pipefail
+          redo -x -v clean 2>&1 | tee clean-output.log
 
       - name: Build all
         id: build
         run: |
           set -o pipefail
           redo -x -v all 2>&1 | tee build-output.log
-          echo "exit_code=${PIPESTATUS[0]}" >> $GITHUB_OUTPUT
 
       - name: Upload build log
         uses: actions/upload-artifact@v4

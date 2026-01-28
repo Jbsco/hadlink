@@ -64,8 +64,8 @@ jobs:
       - name: Run style check
         id: style
         run: |
+          set -o pipefail
           redo -x -v style 2>&1 | tee style-output.log
-          echo "exit_code=${PIPESTATUS[0]}" >> $GITHUB_OUTPUT
 
       - name: Upload style log
         uses: actions/upload-artifact@v4

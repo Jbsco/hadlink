@@ -36,7 +36,7 @@ hadlink is a URL shortener designed with embedded systems principles: determinis
 | Storage | Haskell | Flexibility, multiple backends |
 | Redirect path | Haskell | Simple lookup, read-only |
 | Concurrency & orchestration | Haskell | Lightweight threads, STM |
-| Property testing | Haskell | Hedgehog via Tasty (17 tests) |
+| Property testing | Haskell | Hedgehog via Tasty (24 tests) |
 
 ---
 
@@ -195,11 +195,13 @@ Internet / VPN
 
 By design:
 - No URL enumeration
-- No SSRF
+- No SSRF (IPv4 and IPv6 private ranges blocked)
 - No open redirect abuse
 - No unbounded memory growth
 - Stateless anti-spam
 - Fast redirect path survives DoS
+- Secret key required at startup (no insecure defaults)
+- X-Forwarded-For trust disabled by default
 
 ---
 
