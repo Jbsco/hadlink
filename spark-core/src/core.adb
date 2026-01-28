@@ -211,21 +211,67 @@ package body Core is
 
       --  Check for IPv6-mapped IPv4 (::ffff:x.x.x.x)
       --  These embed IPv4 addresses in IPv6 format
-      if H'Length >= 7 then
+      --  Minimum length: "::ffff:" (7) + "0.0.0.0" (7) = 14
+      if H'Length >= 14 then
          declare
             Prefix7 : constant String := H (H'First .. H'First + 6);
          begin
             if Prefix7 = "::ffff:" or else Prefix7 = "::FFFF:" then
-               --  Extract the IPv4 part and check if it's private
+               --  Check embedded IPv4 for private ranges
+               --  (inline check, no recursion needed)
+               --  The IPv4 part starts at H'First + 7
                declare
-                  IPv4_Part : constant String :=
-                    H (H'First + 7 .. H'Last);
+                  IPv4_Start : constant Natural := H'First + 7;
                begin
-                  if IPv4_Part'Length >= 1 and then
-                     IPv4_Part'Last < Integer'Last - 1
+                  --  Check for 127.x.x.x or 10.x.x.x
+                  if H'Last >= IPv4_Start + 2 then
+                     declare
+                        IPv4_Prefix3 : constant String :=
+                          H (IPv4_Start .. IPv4_Start + 2);
+                     begin
+                        if IPv4_Prefix3 = "10." or else
+                           IPv4_Prefix3 = "127"
+                        then
+                           return True;
+                        end if;
+                     end;
+                  end if;
+
+                  --  Check for 192.168.x.x or 172.16-31.x.x or 169.254.x.x
+                  if H'Last >= IPv4_Start + 6 then
+                     declare
+                        IPv4_Prefix7 : constant String :=
+                          H (IPv4_Start .. IPv4_Start + 6);
+                     begin
+                        if IPv4_Prefix7 = "192.168" or else
+                           IPv4_Prefix7 = "169.254" or else
+                           IPv4_Prefix7 = "172.16." or else
+                           IPv4_Prefix7 = "172.17." or else
+                           IPv4_Prefix7 = "172.18." or else
+                           IPv4_Prefix7 = "172.19." or else
+                           IPv4_Prefix7 = "172.20." or else
+                           IPv4_Prefix7 = "172.21." or else
+                           IPv4_Prefix7 = "172.22." or else
+                           IPv4_Prefix7 = "172.23." or else
+                           IPv4_Prefix7 = "172.24." or else
+                           IPv4_Prefix7 = "172.25." or else
+                           IPv4_Prefix7 = "172.26." or else
+                           IPv4_Prefix7 = "172.27." or else
+                           IPv4_Prefix7 = "172.28." or else
+                           IPv4_Prefix7 = "172.29." or else
+                           IPv4_Prefix7 = "172.30." or else
+                           IPv4_Prefix7 = "172.31."
+                        then
+                           return True;
+                        end if;
+                     end;
+                  end if;
+
+                  --  Check for 0.0.0.0
+                  if H'Last >= IPv4_Start + 6 and then
+                     H (IPv4_Start .. IPv4_Start + 6) = "0.0.0.0"
                   then
-                     --  Recursively check the embedded IPv4 address
-                     return Is_Private_IP (IPv4_Part);
+                     return True;
                   end if;
                end;
             end if;

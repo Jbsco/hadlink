@@ -20,6 +20,7 @@ module Main (main) where
 
 import System.Environment (getArgs, lookupEnv)
 import System.Exit (die)
+import Control.Monad (when)
 import Data.Maybe (fromMaybe)
 import Data.Char (toLower)
 import qualified Data.ByteString.Char8 as BS8
@@ -98,9 +99,8 @@ runShortenDaemon = do
     putStrLn $ "API keys configured: " ++ show (length apiKeys)
     putStrLn $ "Rate limit: " ++ show (cfgRateLimitPerIP config) ++ " requests per " ++ show (cfgRateLimitWindow config) ++ "s"
     putStrLn $ "Trust proxy (X-Forwarded-For): " ++ show trustProxy
-    if trustProxy
-        then putStrLn "WARNING: X-Forwarded-For trusted. Only enable behind a trusted reverse proxy!"
-        else return ()
+    when trustProxy $
+        putStrLn "WARNING: X-Forwarded-For trusted. Only enable behind a trusted reverse proxy!"
 
     -- Initialize storage
     store <- openStore storagePath
