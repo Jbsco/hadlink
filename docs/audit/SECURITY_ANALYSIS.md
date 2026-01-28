@@ -1,6 +1,6 @@
 Hadlink Security Vulnerability Analysis Report
 
-Executive Summary
+## Executive Summary
 
 hadlink is a high-assurance URL shortener designed with security as a primary goal. The codebase demonstrates strong security architecture with formally verified core logic
 (SPARK/Ada), defense-in-depth measures, and comprehensive deployment hardening. However, several vulnerabilities and areas of concern were identified.
@@ -9,9 +9,9 @@ Overall Assessment: The project demonstrates above-average security maturity for
 are low-to-medium severity with clear mitigation paths.
 
 ---
-Findings by Severity
+### Findings by Severity
 
-HIGH SEVERITY
+#### HIGH SEVERITY
 
 1. X-Forwarded-For Header Spoofing → Rate Limit Bypass
 
@@ -77,7 +77,7 @@ Mitigation:
 - Never ship with any default secret value
 
 ---
-MEDIUM SEVERITY
+#### MEDIUM SEVERITY
 
 3. SSRF Bypass via IPv6 and DNS Rebinding
 
@@ -95,20 +95,24 @@ end Is_Private_IP;
 ```
 
 Vulnerability: The private IP detection has gaps:
-1. IPv6 not blocked: ::1, ::ffff:127.0.0.1, fe80::, fc00::/7 (ULA) all bypass
-2. DNS rebinding: URL with hostname evil.com that resolves to 127.0.0.1 bypasses string-based checks
-3. Link-local not blocked: 169.254.x.x addresses are not checked
-4. 0.0.0.0 not blocked: Can represent localhost on some systems
-5. Decimal IP encoding: 2130706433 (decimal for 127.0.0.1) may bypass
+3.1. IPv6 not blocked: ::1, ::ffff:127.0.0.1, fe80::, fc00::/7 (ULA) all bypass
+3.2. DNS rebinding: URL with hostname evil.com that resolves to 127.0.0.1 bypasses string-based checks
+3.3. Link-local not blocked: 169.254.x.x addresses are not checked
+3.4. 0.0.0.0 not blocked: Can represent localhost on some systems
+3.5. Decimal IP encoding: 2130706433 (decimal for 127.0.0.1) may bypass
 
 Attack Vector:
-# IPv6 bypass
+IPv6 bypass
+```
 curl -X POST http://target:8443/api/create \
    -d "url=http://[::1]:8080/admin"
+```
 
-# DNS rebinding (attacker controls DNS)
+DNS rebinding (attacker controls DNS)
+```
 curl -X POST http://target:8443/api/create \
    -d "url=http://rebind-to-localhost.attacker.com/secret"
+```
 
 Impact: If the redirect service is used to probe internal networks, attackers can create short links to internal services.
 
@@ -138,9 +142,9 @@ verifyPoW (Difficulty diff) (ValidURL url) (Nonce nonce)
 Vulnerability: The PoW verification has no nonce uniqueness check or timestamp. A valid nonce for a URL can be reused indefinitely.
 
 Attack Scenario:
-1. Compute valid nonce once for a malicious URL
-2. Reuse the same URL+nonce pair to recreate the link after deletion
-3. Pre-compute nonces offline for batch submission
+4.1. Compute valid nonce once for a malicious URL
+4.2. Reuse the same URL+nonce pair to recreate the link after deletion
+4.3. Pre-compute nonces offline for batch submission
 
 Impact: PoW protection is weaker than expected against determined attackers.
 
@@ -209,7 +213,7 @@ Mitigation:
 - Property test FFI boundary with edge cases
 
 ---
-LOW SEVERITY
+#### LOW SEVERITY
 
 7. API Key Comparison Timing Attack
 
@@ -295,22 +299,22 @@ Positive Security Features
 
 The analysis identified several strong security practices:
 
-1. Formally Verified Core Logic: SPARK/Ada with GNATprove for URL validation and short code generation - exceptional for a URL shortener
-2. Defense in Depth:
+10.1. Formally Verified Core Logic: SPARK/Ada with GNATprove for URL validation and short code generation - exceptional for a URL shortener
+10.2. Defense in Depth:
    - Rate limiting per-IP
    - Optional Proof-of-Work
    - API key authentication
    - SSRF protection (partial)
-3. Deployment Hardening:
+10.3. Deployment Hardening:
    - Docker: no-new-privileges, cap_drop: ALL, read-only filesystem, memory limits
    - Systemd: ProtectSystem=strict, MemoryDenyWriteExecute=true, separate users
-4. Parameterized SQL Queries: sqlite-simple library prevents SQL injection
-5. Newtype Wrappers: RawURL vs ValidURL type distinction prevents accidental use of unvalidated input
-6. Deterministic Short Codes: HMAC-based generation prevents enumeration
-7. Secret Management: Docker secrets and file-based secrets with restricted permissions
+10.4. Parameterized SQL Queries: sqlite-simple library prevents SQL injection
+10.5. Newtype Wrappers: RawURL vs ValidURL type distinction prevents accidental use of unvalidated input
+10.6. Deterministic Short Codes: HMAC-based generation prevents enumeration
+10.7. Secret Management: Docker secrets and file-based secrets with restricted permissions
 
 ---
-Threat Model Gaps
+### Threat Model Gaps
 
 Not Addressed by Current Design:
 
@@ -321,7 +325,7 @@ Not Addressed by Current Design:
 5. Rate Limiting Evasion: IPv6 rotation, proxy pools easily bypass current limits
 
 ---
-Recommended Prioritized Actions
+### Recommended Prioritized Actions
 ```
 ┌──────────┬──────────────────────────┬───────────────────────────────────────────────────┐
 │ Priority │         Finding          │                      Action                       │
@@ -344,7 +348,7 @@ Recommended Prioritized Actions
 └──────────┴──────────────────────────┴───────────────────────────────────────────────────┘
 ```
 ---
-Conclusion
+## Conclusion
 
 Hadlink demonstrates thoughtful security architecture, particularly with the formally verified SPARK core. The most critical issues are the potential for rate limit bypass
 via header spoofing and the insecure default secret. Both have straightforward fixes.

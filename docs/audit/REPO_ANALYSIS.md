@@ -102,13 +102,13 @@ Entry point: hadlink {shorten|redirect|version}
 
 Two operational modes:
 
-1. Shorten Daemon - URL creation service
+4.1. Shorten Daemon - URL creation service
 hadlink shorten
 - Configuration from environment variables
 - Listens on configurable port (default: 8443, localhost-only in production)
 - Accepts POST requests to /api/create
 - Requires authentication (API key) or proof-of-work
-2. Redirect Daemon - Fast resolution service
+4.2. Redirect Daemon - Fast resolution service
 hadlink redirect
 - Listens on port 8080 (publicly exposed)
 - Read-only database access
@@ -408,10 +408,10 @@ Systemd Service Files - MEDIUM ASSURANCE
 9. THREAT MODEL & MITIGATION
 
 Identified Assets:
-1. Integrity of URL mappings
-2. Availability of redirect service
-3. Predictable resource usage
-4. Privacy of internal URLs
+9.1. Integrity of URL mappings
+9.2. Availability of redirect service
+9.3. Predictable resource usage
+9.4. Privacy of internal URLs
 
 Identified Threats & Mitigations:
 ```
@@ -441,24 +441,24 @@ Identified Threats & Mitigations:
 10. CRITICAL FILES SUMMARY FOR SECURITY REVIEW
 
 High Priority (Security Critical):
-1. /home/jbsco/cs/hadlink/haskell/src/API.hs - HTTP request handling, authentication, rate limiting
-2. /home/jbsco/cs/hadlink/haskell/src/SparkFFI.hs - FFI boundary, memory safety
-3. /home/jbsco/cs/hadlink/haskell/src/Store.hs - Database access patterns
-4. /home/jbsco/cs/hadlink/spark-core/src/core.adb - Formal verification implementation
-5. /home/jbsco/cs/hadlink/deploy/docker/docker-compose.yml - Security hardening
-6. /home/jbsco/cs/hadlink/deploy/systemd/hadlink-shorten.service - Service isolation
+10.1. /home/jbsco/cs/hadlink/haskell/src/API.hs - HTTP request handling, authentication, rate limiting
+10.2. /home/jbsco/cs/hadlink/haskell/src/SparkFFI.hs - FFI boundary, memory safety
+10.3. /home/jbsco/cs/hadlink/haskell/src/Store.hs - Database access patterns
+10.4. /home/jbsco/cs/hadlink/spark-core/src/core.adb - Formal verification implementation
+10.5. /home/jbsco/cs/hadlink/deploy/docker/docker-compose.yml - Security hardening
+10.6. /home/jbsco/cs/hadlink/deploy/systemd/hadlink-shorten.service - Service isolation
 
 Medium Priority:
-7. /home/jbsco/cs/hadlink/haskell/src/RateLimit.hs - Concurrency control
-8. /home/jbsco/cs/hadlink/haskell/src/ProofOfWork.hs - PoW validation
-9. /home/jbsco/cs/hadlink/haskell/app/Main.hs - Configuration loading, daemon startup
-10. /home/jbsco/cs/hadlink/deploy/deploy.sh - Deployment automation
+10.7. /home/jbsco/cs/hadlink/haskell/src/RateLimit.hs - Concurrency control
+10.8. /home/jbsco/cs/hadlink/haskell/src/ProofOfWork.hs - PoW validation
+10.9. /home/jbsco/cs/hadlink/haskell/app/Main.hs - Configuration loading, daemon startup
+10.10. /home/jbsco/cs/hadlink/deploy/deploy.sh - Deployment automation
 
 Lower Priority (Supporting):
-11. /home/jbsco/cs/hadlink/haskell/src/Canonicalize.hs - URL preprocessing (delegates to SPARK)
-12. /home/jbsco/cs/hadlink/haskell/src/ShortCode.hs - Short code generation (delegates to SPARK)
-13. /home/jbsco/cs/hadlink/haskell/src/Types.hs - Type definitions
-14. /home/jbsco/cs/hadlink/haskell/test/Properties.hs - Test cases
+10.11. /home/jbsco/cs/hadlink/haskell/src/Canonicalize.hs - URL preprocessing (delegates to SPARK)
+10.12. /home/jbsco/cs/hadlink/haskell/src/ShortCode.hs - Short code generation (delegates to SPARK)
+10.13. /home/jbsco/cs/hadlink/haskell/src/Types.hs - Type definitions
+10.14. /home/jbsco/cs/hadlink/haskell/test/Properties.hs - Test cases
 
 ---
 11. BUILD & DEPLOYMENT INFRASTRUCTURE
@@ -478,8 +478,8 @@ Docker Build: Multi-stage Dockerfile
 - LD_LIBRARY_PATH configured for SPARK library
 
 Deployment Options:
-1. Docker Compose (recommended) - network isolation, secrets management
-2. Systemd services - with comprehensive security hardening options
+11.1. Docker Compose (recommended) - network isolation, secrets management
+11.2. Systemd services - with comprehensive security hardening options
 
 ---
 12. SUMMARY TABLE: ALL SOURCE FILES
@@ -529,14 +529,14 @@ Deployment Options:
 ---
 13. KNOWN LIMITATIONS & NOTES
 
-1. Single-threaded FFI: Ada runtime is not thread-safe for concurrent calls. Tests run with NumThreads 1.
-2. No distributed rate limiting: Rate limiter only works within single process. Multiple instances would need coordination.
-3. Client IP trust: X-Forwarded-For header is trusted. Requires proper reverse proxy validation at deployment boundary.
-4. No API key rotation: Keys are static configuration; no versioning or revocation mechanism.
-5. Database shared between daemons: Both shorten and redirect access same SQLite database concurrently.
-6. No audit logging: Creation of short links is not logged (explicitly out of scope per non-goals).
-7. No cleanup mechanism: Expired or unused mappings are not automatically removed.
-8. Proof-of-work is optional: Disabled by default (HADLINK_POW_DIFFICULTY=0).
+13.1. Single-threaded FFI: Ada runtime is not thread-safe for concurrent calls. Tests run with NumThreads 1.
+13.2. No distributed rate limiting: Rate limiter only works within single process. Multiple instances would need coordination.
+13.3. Client IP trust: X-Forwarded-For header is trusted. Requires proper reverse proxy validation at deployment boundary.
+13.4. No API key rotation: Keys are static configuration; no versioning or revocation mechanism.
+13.5. Database shared between daemons: Both shorten and redirect access same SQLite database concurrently.
+13.6. No audit logging: Creation of short links is not logged (explicitly out of scope per non-goals).
+13.7. No cleanup mechanism: Expired or unused mappings are not automatically removed.
+13.8. Proof-of-work is optional: Disabled by default (HADLINK_POW_DIFFICULTY=0).
 
 ---
 14. CONCLUSION
@@ -551,9 +551,9 @@ Security maturity: The project is not production-certified, but is architected w
 Haskell orchestration layer is property-tested and uses battle-tested libraries (Warp, sqlite-simple).
 
 Recommended security focus areas for review:
-1. FFI boundary correctness (SparkFFI.hs memory marshalling)
-2. Rate limiting under adversarial IP spoofing
-3. Docker/Systemd deployment isolation verification
-4. Deployment script parameter validation (deploy.sh)
+14.1. FFI boundary correctness (SparkFFI.hs memory marshalling)
+14.2. Rate limiting under adversarial IP spoofing
+14.3. Docker/Systemd deployment isolation verification
+14.4. Deployment script parameter validation (deploy.sh)
 
 All files examined. Analysis complete.
