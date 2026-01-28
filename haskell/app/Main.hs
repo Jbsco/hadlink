@@ -21,6 +21,7 @@ module Main (main) where
 import System.Environment (getArgs, lookupEnv)
 import System.Exit (die)
 import Data.Maybe (fromMaybe)
+import Data.Char (toLower)
 import qualified Data.ByteString.Char8 as BS8
 import qualified Data.Text as T
 import Network.Wai.Handler.Warp (run)
@@ -50,15 +51,36 @@ runShortenDaemon = do
     -- Get configuration from environment
     port <- read <$> getEnvWithDefault "HADLINK_PORT" "8443"
     storagePath <- getEnvWithDefault "HADLINK_STORAGE" "./hadlink.db"
-    secretStr <- getEnvWithDefault "HADLINK_SECRET" "CHANGE_ME_INSECURE_DEFAULT"
+    secretStr <- lookupEnv "HADLINK_SECRET"
     powDiffStr <- getEnvWithDefault "HADLINK_POW_DIFFICULTY" "0"
     powDiffAuthStr <- getEnvWithDefault "HADLINK_POW_DIFFICULTY_AUTH" "0"
     apiKeysStr <- getEnvWithDefault "HADLINK_API_KEYS" ""
+    trustProxyStr <- getEnvWithDefault "HADLINK_TRUST_PROXY" "false"
 
-    let secret = BS8.pack secretStr
-        powDifficulty = read powDiffStr
+    -- Validate secret: must be set and not the insecure default
+    let insecureDefault = "CHANGE_ME_INSECURE_DEFAULT"
+    secret <- case secretStr of
+        Nothing -> die $ unlines
+            [ "ERROR: HADLINK_SECRET environment variable is not set."
+            , ""
+            , "The shorten service requires a secret key for HMAC-based short code generation."
+            , "Generate a secure secret with: openssl rand -hex 16"
+            , "Then set it: export HADLINK_SECRET=<your-secret>"
+            ]
+        Just s | s == insecureDefault -> die $ unlines
+            [ "ERROR: HADLINK_SECRET is set to the insecure default value."
+            , ""
+            , "You must set a unique secret key for production use."
+            , "Generate a secure secret with: openssl rand -hex 16"
+            , "Then set it: export HADLINK_SECRET=<your-secret>"
+            ]
+        Just s | null s -> die "ERROR: HADLINK_SECRET is empty. Please set a non-empty secret key."
+        Just s -> return $ BS8.pack s
+
+    let powDifficulty = read powDiffStr
         powDifficultyAuth = read powDiffAuthStr
         apiKeys = parseAPIKeys apiKeysStr
+        trustProxy = map toLower trustProxyStr `elem` ["true", "1", "yes"]
         config = Config
           { cfgSecret = secret
           , cfgPowDifficulty = Difficulty powDifficulty
@@ -67,6 +89,7 @@ runShortenDaemon = do
           , cfgRateLimitWindow = 60
           , cfgStoragePath = storagePath
           , cfgAPIKeys = apiKeys
+          , cfgTrustProxy = trustProxy
           }
 
     putStrLn $ "Starting shorten daemon on port " ++ show port
@@ -74,6 +97,10 @@ runShortenDaemon = do
     putStrLn $ "PoW difficulty: " ++ show powDifficulty ++ " (anonymous), " ++ show powDifficultyAuth ++ " (authenticated)"
     putStrLn $ "API keys configured: " ++ show (length apiKeys)
     putStrLn $ "Rate limit: " ++ show (cfgRateLimitPerIP config) ++ " requests per " ++ show (cfgRateLimitWindow config) ++ "s"
+    putStrLn $ "Trust proxy (X-Forwarded-For): " ++ show trustProxy
+    if trustProxy
+        then putStrLn "WARNING: X-Forwarded-For trusted. Only enable behind a trusted reverse proxy!"
+        else return ()
 
     -- Initialize storage
     store <- openStore storagePath
@@ -109,6 +136,7 @@ runRedirectDaemon = do
           , cfgRateLimitWindow = 0
           , cfgStoragePath = storagePath
           , cfgAPIKeys = []
+          , cfgTrustProxy = False  -- Redirect daemon doesn't use rate limiting
           }
 
     -- Initialize rate limiter (not used by redirect, but required by app signature)

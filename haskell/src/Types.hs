@@ -91,4 +91,5 @@ data Config = Config
   , cfgRateLimitWindow     :: Int         -- Rate limit window in seconds
   , cfgStoragePath         :: FilePath    -- Path to storage backend
   , cfgAPIKeys             :: [APIKey]    -- Authorized API keys
+  , cfgTrustProxy          :: Bool        -- Trust X-Forwarded-For header (only enable behind trusted proxy)
   } deriving (Show, Eq, Generic)

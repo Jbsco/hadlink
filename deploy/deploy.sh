@@ -19,11 +19,64 @@ INSTALL_DIR="/usr/local"
 REMOVE_DATA=false
 FORCE=false
 
-# Load existing .env if present (for Docker restarts to retain settings)
+# Get script directory
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-if [ -f "$SCRIPT_DIR/docker/.env" ]; then
-    source "$SCRIPT_DIR/docker/.env" 2>/dev/null || true
-fi
+
+# Safely load existing .env if present (for Docker restarts to retain settings)
+# Instead of sourcing the file (which could execute arbitrary code), we extract
+# only expected variables with validated values (alphanumeric, underscores, hyphens)
+load_env_safely() {
+    local env_file="$1"
+    if [ ! -f "$env_file" ]; then
+        return 0
+    fi
+
+    # Pattern for safe values: alphanumeric, underscore, hyphen, dot, forward slash
+    # This prevents shell injection via special characters
+    local safe_value_pattern='^[a-zA-Z0-9_./-]*$'
+
+    # Read each expected variable safely
+    while IFS='=' read -r key value; do
+        # Skip comments and empty lines
+        [[ "$key" =~ ^#.*$ ]] && continue
+        [[ -z "$key" ]] && continue
+
+        # Remove any surrounding quotes from value
+        value="${value#\"}"
+        value="${value%\"}"
+        value="${value#\'}"
+        value="${value%\'}"
+
+        # Validate value contains only safe characters
+        if ! [[ "$value" =~ $safe_value_pattern ]]; then
+            log_warn "Skipping unsafe value for $key in .env file"
+            continue
+        fi
+
+        # Only load expected variables
+        case "$key" in
+            REDIRECT_PORT)
+                [[ "$value" =~ ^[0-9]+$ ]] && REDIRECT_PORT="$value"
+                ;;
+            SHORTEN_PORT)
+                [[ "$value" =~ ^[0-9]+$ ]] && SHORTEN_PORT="$value"
+                ;;
+            POW_DIFFICULTY)
+                [[ "$value" =~ ^[0-9]+$ ]] && POW_DIFFICULTY="$value"
+                ;;
+            POW_DIFFICULTY_AUTH)
+                [[ "$value" =~ ^[0-9]+$ ]] && POW_DIFFICULTY_AUTH="$value"
+                ;;
+            RATE_LIMIT)
+                [[ "$value" =~ ^[0-9]+$ ]] && RATE_LIMIT="$value"
+                ;;
+            # Silently ignore unknown variables
+        esac
+    done < "$env_file"
+}
+
+# Load .env safely (log_warn defined later, so defer loading)
+ENV_FILE_TO_LOAD="$SCRIPT_DIR/docker/.env"
 
 # Colors for output
 RED='\033[0;31m'
@@ -88,6 +141,11 @@ log_info() {
 log_warn() {
     echo -e "${YELLOW}[WARN]${NC} $1"
 }
+
+# Now that log_warn is defined, load the .env file safely
+if [ -n "$ENV_FILE_TO_LOAD" ] && [ -f "$ENV_FILE_TO_LOAD" ]; then
+    load_env_safely "$ENV_FILE_TO_LOAD"
+fi
 
 log_error() {
     echo -e "${RED}[ERROR]${NC} $1"
