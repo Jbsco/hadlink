@@ -1,5 +1,28 @@
 # Design Document
 
+## Contents
+
+- [Overview](#overview)
+- [Core Principle](#core-principle)
+- [Architecture](#architecture)
+- [SPARK Core Responsibilities](#spark-core-responsibilities)
+- [Haskell Layer Responsibilities](#haskell-layer-responsibilities)
+- [FFI Boundary](#ffi-boundary)
+- [Testing Strategy](#testing-strategy)
+- [Storage Model](#storage-model)
+- [Deployment Model](#deployment-model)
+- [Security Properties](#security-properties)
+- [Migration Plan](#migration-plan)
+- [Why This Approach?](#why-this-approach)
+- [Invariants](#invariants)
+- [Future Considerations](#future-considerations)
+- [Cryptography](#cryptography)
+- [Toolchain](#toolchain)
+- [Assurance Model](#assurance-model)
+- [References](#references)
+
+---
+
 ## Overview
 
 hadlink is a URL shortener designed with embedded systems principles: deterministic behavior, bounded resources, and explicit security properties.
@@ -207,12 +230,12 @@ By design:
 
 ## Migration Plan
 
-### Phase 1 — Haskell-only ✓
+### Phase 1 — Haskell-only (Complete)
 - Implement everything in Haskell
 - Lock down invariants in docs
 - Write property tests
 
-### Phase 2 — SPARK extraction ✓
+### Phase 2 — SPARK extraction (Complete)
 - Move canonicalization and short-code generation into SPARK
 - FFI integration (Haskell calls SPARK via C ABI)
 - SPARK proofs at 100% for hadlink core

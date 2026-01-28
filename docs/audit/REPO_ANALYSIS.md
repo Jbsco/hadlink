@@ -2,6 +2,25 @@
 
 ---
 
+## Contents
+
+- [1. Project Overview](#1-project-overview)
+- [2. Overall Architecture & Directory Structure](#2-overall-architecture--directory-structure)
+- [3. Technologies & Frameworks](#3-technologies--frameworks)
+- [4. Entry Points](#4-entry-points)
+- [5. Data Flow Analysis](#5-data-flow-analysis)
+- [6. Files Handling Security-Sensitive Operations](#6-files-handling-security-sensitive-operations)
+- [7. Identified Entry Points for User Input](#7-identified-entry-points-for-user-input)
+- [8. Security Analysis By Component](#8-security-analysis-by-component)
+- [9. Threat Model & Mitigation](#9-threat-model--mitigation)
+- [10. Critical Files Summary for Security Review](#10-critical-files-summary-for-security-review)
+- [11. Build & Deployment Infrastructure](#11-build--deployment-infrastructure)
+- [12. Summary Table: All Source Files](#12-summary-table-all-source-files)
+- [13. Known Limitations & Notes](#13-known-limitations--notes)
+- [14. Conclusion](#14-conclusion)
+
+---
+
 THOROUGH CODEBASE EXPLORATION REPORT: hadlink
 
 1. PROJECT OVERVIEW
@@ -345,68 +364,68 @@ G. FORMAL VERIFICATION (SPARK Core)
 
 SPARK Core (core.ads/adb) - HIGHEST ASSURANCE
 
-✓ Formally proven with GNATprove
-✓ 100% SPARK_Mode (On) for verification
-✓ Predicates: Has_Valid_Scheme, Has_Credentials, Has_Private_Host
-✓ No external dependencies, pure logic
-✓ Explicit postconditions on Canonicalize, Make_Short_Code
-⚠ Limited to 2048-byte URL length (enforced at boundary)
+- [x] Formally proven with GNATprove
+- [x] 100% SPARK_Mode (On) for verification
+- [x] Predicates: Has_Valid_Scheme, Has_Credentials, Has_Private_Host
+- [x] No external dependencies, pure logic
+- [x] Explicit postconditions on Canonicalize, Make_Short_Code
+- Limited to 2048-byte URL length (enforced at boundary)
 
 Haskell HTTP Layer (API.hs) - MEDIUM ASSURANCE
 
-✓ Uses Warp (battle-tested HTTP server)
-✓ Uses WAI (standard web framework abstraction)
-✓ sqlite-simple uses parametrized queries (SQL injection safe)
-✓ Rate limiting with STM-based concurrency control
-✓ Proof-of-work validation before database writes
-⚠ FFI calls to Ada - requires correct marshalling (see SparkFFI.hs)
-⚠ Client IP extraction from headers - vulnerable to header spoofing without reverse proxy validation
-⚠ No input validation on nonce parameter (assumed arbitrary bytes)
+- [x] Uses Warp (battle-tested HTTP server)
+- [x] Uses WAI (standard web framework abstraction)
+- [x] sqlite-simple uses parametrized queries (SQL injection safe)
+- [x] Rate limiting with STM-based concurrency control
+- [x] Proof-of-work validation before database writes
+- FFI calls to Ada - requires correct marshalling (see SparkFFI.hs)
+- Client IP extraction from headers - vulnerable to header spoofing without reverse proxy validation
+- No input validation on nonce parameter (assumed arbitrary bytes)
 
 Rate Limiting (RateLimit.hs) - MEDIUM ASSURANCE
 
-✓ Token bucket algorithm, per-IP tracking
-✓ STM for thread-safe concurrent access
-✓ Automatic cleanup of old buckets (prevents unbounded memory growth)
-⚠ Vulnerable to IP spoofing if X-Forwarded-For header is not validated
-⚠ No distributed rate limiting (single-process only)
+- [x] Token bucket algorithm, per-IP tracking
+- [x] STM for thread-safe concurrent access
+- [x] Automatic cleanup of old buckets (prevents unbounded memory growth)
+- Vulnerable to IP spoofing if X-Forwarded-For header is not validated
+- No distributed rate limiting (single-process only)
 
 Proof-of-Work (ProofOfWork.hs) - MEDIUM ASSURANCE
 
-✓ SHA256 from cryptonite (well-vetted library)
-✓ Leading zero bit counting is deterministic
-✓ Difficulty 0 disables PoW (explicit bypass)
-⚠ No re-work verification (client can't prove nonce was computed honestly)
-⚠ No replay protection (same URL + nonce always valid)
+- [x] SHA256 from cryptonite (well-vetted library)
+- [x] Leading zero bit counting is deterministic
+- [x] Difficulty 0 disables PoW (explicit bypass)
+- No re-work verification (client can't prove nonce was computed honestly)
+- No replay protection (same URL + nonce always valid)
 
 Deployment Scripts (deploy.sh) - LOW ASSURANCE
 
-⚠ Bash script with complex logic
-⚠ source <(alr printenv) - process substitution in Dockerfile
-⚠ Variable expansion in shell context
-⚠ User-provided paths not validated (--data-dir, --install-dir)
-⚠ Secret file handling: generated with openssl, file permissions set with chmod 600
-⚠ Docker compose configuration written dynamically
+- Bash script with complex logic
+- source <(alr printenv) - process substitution in Dockerfile
+- Variable expansion in shell context
+- User-provided paths not validated (--data-dir, --install-dir)
+- Secret file handling: generated with openssl, file permissions set with chmod 600
+- Docker compose configuration written dynamically
 
 Docker Compose (docker-compose.yml) - MEDIUM ASSURANCE
 
-✓ Network isolation: redirect on public network, shorten on internal network
-✓ Read-only filesystem for redirect daemon
-✓ Security options: no-new-privileges, cap_drop ALL
-✓ Memory and CPU limits enforced
-✓ Secret managed via Docker Secrets mechanism
-⚠ Shorten service still accessible on port 8443 (expects firewall/LAN-only)
-⚠ No authentication between services (shared SQLite assumed secure)
+- [x] Network isolation: redirect on public network, shorten on internal network
+- [x] Read-only filesystem for redirect daemon
+- [x] Security options: no-new-privileges, cap_drop ALL
+- [x] Memory and CPU limits enforced
+- [x] Secret managed via Docker Secrets mechanism
+- Shorten service still accessible on port 8443 (expects firewall/LAN-only)
+- No authentication between services (shared SQLite assumed secure)
 
 Systemd Service Files - MEDIUM ASSURANCE
 
-✓ ProtectSystem=strict, ProtectHome=true
-✓ MemoryDenyWriteExecute=true, LockPersonality=true
-✓ Separate users (hadlink:hadlink) with least privilege
-✓ Redirect daemon has read-only storage (ReadOnlyPaths)
-✓ Shorten daemon has read-write storage (ReadWritePaths)
-✓ Secret loaded from /etc/hadlink/secret.conf (file permissions managed by root)
-⚠ LD_LIBRARY_PATH set globally - could be hijacked if not protected
+- [x] ProtectSystem=strict, ProtectHome=true
+- [x] MemoryDenyWriteExecute=true, LockPersonality=true
+- [x] Separate users (hadlink:hadlink) with least privilege
+- [x] Redirect daemon has read-only storage (ReadOnlyPaths)
+- [x] Shorten daemon has read-write storage (ReadWritePaths)
+- [x] Secret loaded from /etc/hadlink/secret.conf (file permissions managed by root)
+- LD_LIBRARY_PATH set globally - could be hijacked if not protected
 
 ---
 9. THREAT MODEL & MITIGATION

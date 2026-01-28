@@ -3,6 +3,26 @@
 Based on analysis of the hadlink codebase after security fixes were applied (commit 8e7a860):
 
 ---
+
+## Contents
+
+- [Executive Summary](#executive-summary)
+- [1. Input Validation & Injection Points](#1-input-validation--injection-points)
+- [2. Authentication & Authorization](#2-authentication--authorization)
+- [3. SSRF Protection](#3-ssrf-protection)
+- [4. Configuration Security](#4-configuration-security)
+- [5. Deployment Security](#5-deployment-security)
+- [6. FFI Boundary](#6-ffi-boundary-haskellada-interface)
+- [7. Proof-of-Work Security](#7-proof-of-work-security)
+- [8. Critical Finding Verification](#8-critical-finding-verification)
+- [9. Remaining Vulnerabilities](#9-remaining-vulnerabilities)
+- [10. New Concerns From Fixes](#10-new-concerns-from-fixes)
+- [Overall Security Posture](#overall-security-posture)
+- [Recommendations](#recommendations)
+- [Conclusion](#conclusion)
+- [Security Re-Analysis Summary](#security-re-analysis-summary)
+
+---
 ### EXECUTIVE SUMMARY
 
 Status: P0 & P1 Fixes Successfully Implemented
@@ -10,9 +30,9 @@ Status: P0 & P1 Fixes Successfully Implemented
 The recent commit 8e7a860 ("Address all P0 & P1 security analysis items") has successfully mitigated the three critical vulnerabilities identified in the
 previous analysis:
 
-1. ✅ Insecure Default Secret - NOW BLOCKING at startup
-2. ✅ X-Forwarded-For Header Spoofing - NOW CONFIGURABLE with validation
-3. ✅ SSRF IPv6 Bypass - NOW INCLUDES comprehensive IPv6 checks
+1. [x] Insecure Default Secret - NOW BLOCKING at startup
+2. [x] X-Forwarded-For Header Spoofing - NOW CONFIGURABLE with validation
+3. [x] SSRF IPv6 Bypass - NOW INCLUDES comprehensive IPv6 checks
 
 Overall Assessment: Post-fix code demonstrates significantly improved security posture. All P0 items fixed, P1 items addressed. Remaining issues are P2-P3
 (low-to-medium risk).
@@ -20,7 +40,7 @@ Overall Assessment: Post-fix code demonstrates significantly improved security p
 ---
 #### 1. INPUT VALIDATION & INJECTION POINTS
 
-1.1 SQL Injection Vectors ✅ SECURE
+1.1 SQL Injection Vectors - SECURE
 
 File: /home/jbsco/cs/hadlink/haskell/src/Store.hs
 
@@ -38,7 +58,7 @@ results <- SQL.query conn
 Assessment: Type-safe, injection-proof. The SQL.Only wrapper ensures proper parameter binding.
 
 ---
-1.2 Command Injection ✅ SECURE (FIXED)
+1.2 Command Injection - SECURE (FIXED)
 
 File: /home/jbsco/cs/hadlink/deploy/deploy.sh
 
@@ -71,16 +91,16 @@ load_env_safely() {
 ```
 
 Assessment:
-- ✅ Whitelist-based validation (only alphanumeric, underscore, hyphen, dot, slash)
-- ✅ Numeric values validated with second regex
-- ✅ Unknown variables silently ignored
-- ✅ No source or eval - safe extraction pattern
-- ✅ Deferred loading (line 78-79) ensures log_warn defined first
+- [x] Whitelist-based validation (only alphanumeric, underscore, hyphen, dot, slash)
+- [x] Numeric values validated with second regex
+- [x] Unknown variables silently ignored
+- [x] No source or eval - safe extraction pattern
+- [x] Deferred loading (line 78-79) ensures log_warn defined first
 
 Verification: Lines 146-148 show proper delayed invocation after function definition.
 
 ---
-1.3 Header Injection (Location Header) ⚠ LOW RISK
+1.3 Header Injection (Location Header) - LOW RISK
 
 File: /home/jbsco/cs/hadlink/haskell/src/API.hs (lines 145-151)
 ```
@@ -111,7 +131,7 @@ Risk: LOW - Would require SPARK validation gap specifically allowing control cha
 Recommendation: Add explicit CRLF validation in test suite (not code change needed if control chars already blocked by SPARK)
 
 ---
-1.4 URL Validation (SPARK Core) ✅ STRONG
+1.4 URL Validation (SPARK Core) - STRONG
 
 Files: /home/jbsco/cs/hadlink/spark-core/src/core.ads and core.adb
 
@@ -130,12 +150,12 @@ Canonicalize Function (core.adb:481-557):
 -- Make_Valid_URL(Input) guarantees: To_String(Result.URL) = Input
 -- Query functions prove postcondition via substitution lemma
 
-Assessment: ✅ GOLD-LEVEL PROOF with ghost lemma for predicate substitution
+Assessment: GOLD-LEVEL PROOF with ghost lemma for predicate substitution
 
 ---
 #### 2. AUTHENTICATION & AUTHORIZATION
 
-2.1 API Key Handling ⚠ LOW RISK (Timing Attack)
+2.1 API Key Handling - LOW RISK (Timing Attack)
 
 File: /home/jbsco/cs/hadlink/haskell/src/API.hs (lines 106-113)
 ```
@@ -165,7 +185,7 @@ Fix Available: Use Data.ByteString constant-time comparison or timingAttackResis
 Current Assessment: Not critical for typical deployments. Can be addressed in future updates.
 
 ---
-2.2 Rate Limiting Implementation ✅ CORRECT
+2.2 Rate Limiting Implementation - CORRECT
 
 File: /home/jbsco/cs/hadlink/haskell/src/RateLimit.hs
 
@@ -181,10 +201,10 @@ Known Limitation (documented, not a vulnerability):
 - In-memory only: Lost on restart
 - Per-instance: Load-balanced deployments each track separately
 
-Assessment: ✅ Limitation is documented and accepted. Suitable for single-instance deployments. Redis-backed version recommended for multi-instance.
+Assessment: Limitation is documented and accepted. Suitable for single-instance deployments. Redis-backed version recommended for multi-instance.
 
 ---
-2.3 Proof-of-Work Verification ⚠ MEDIUM RISK (Replay)
+2.3 Proof-of-Work Verification - MEDIUM RISK (Replay)
 
 File: /home/jbsco/cs/hadlink/haskell/src/ProofOfWork.hs
 
@@ -204,9 +224,9 @@ verifyPoW (Difficulty diff) (ValidURL url) (Nonce nonce)
 ```
       
 Vulnerability:
-- ✅ No nonce uniqueness tracking: Same nonce can be reused indefinitely
-- ✅ No timestamp validation: Nonces from 2020 still valid in 2026
-- ✅ No server challenge: Attacker can precompute offline
+- [ ] No nonce uniqueness tracking: Same nonce can be reused indefinitely
+- [ ] No timestamp validation: Nonces from 2020 still valid in 2026
+- [ ] No server challenge: Attacker can precompute offline
 
 Attack Scenario:
 1. Attacker computes nonce for URL once: nonce = precompute_pow(url, difficulty)
@@ -224,19 +244,19 @@ combined = BS.concat [serverChallenge, urlBytes, nonce]
 ---
 #### 3. SSRF PROTECTION
 
-3.1 IPv4 Private Range Detection ✅ FIXED
+3.1 IPv4 Private Range Detection - FIXED
 
 File: /home/jbsco/cs/hadlink/spark-core/src/core.adb:135-180
 
 Status: COMPREHENSIVE - FIXED (P1)
 
 Coverage:
-- ✅ 10.0.0.0/8 (Class A private)
-- ✅ 172.16.0.0/12 (Class B private) - ALL 16 ranges explicitly checked
-- ✅ 192.168.0.0/16 (Class C private)
-- ✅ 127.0.0.0/8 (Loopback)
-- ✅ 169.254.0.0/16 (Link-local) - NEWLY ADDED
-- ✅ 0.0.0.0 (Any address) - NEWLY ADDED
+- [x] 10.0.0.0/8 (Class A private)
+- [x] 172.16.0.0/12 (Class B private) - ALL 16 ranges explicitly checked
+- [x] 192.168.0.0/16 (Class C private)
+- [x] 127.0.0.0/8 (Loopback)
+- [x] 169.254.0.0/16 (Link-local) - NEWLY ADDED
+- [x] 0.0.0.0 (Any address) - NEWLY ADDED
 
 Implementation (lines 137-180):
 ```
@@ -259,21 +279,21 @@ if H = "0.0.0.0" then  -- SPECIAL ADDRESS (NEW)
 end if;
 ```
 
-Assessment: ✅ Excellent IPv4 coverage
+Assessment: Excellent IPv4 coverage
 
 ---
-3.2 IPv6 Private Range Detection ✅ FIXED
+3.2 IPv6 Private Range Detection - FIXED
 
 File: /home/jbsco/cs/hadlink/spark-core/src/core.adb:182-280
 
 Status: COMPREHENSIVE - FIXED (P1)
 
 Coverage:
-- ✅ ::1 (Loopback)
-- ✅ :: (All-zeros) - NEWLY ADDED
-- ✅ fe80::/10 (Link-local) - NEWLY ADDED (case-insensitive)
-- ✅ fc00::/7 (Unique Local Addresses ULA) - NEWLY ADDED (fc00-fdff, case-insensitive)
-- ✅ ::ffff:x.x.x.x (IPv6-mapped IPv4) - NEWLY ADDED (recursive check)
+- [x] ::1 (Loopback)
+- [x] :: (All-zeros) - NEWLY ADDED
+- [x] fe80::/10 (Link-local) - NEWLY ADDED (case-insensitive)
+- [x] fc00::/7 (Unique Local Addresses ULA) - NEWLY ADDED (fc00-fdff, case-insensitive)
+- [x] ::ffff:x.x.x.x (IPv6-mapped IPv4) - NEWLY ADDED (recursive check)
 
 Detailed IPv6-Mapped IPv4 Check (lines 212-279):
 ```
@@ -301,10 +321,10 @@ if H'Length >= 14 then  -- Minimum: "::ffff:" + "0.0.0.0"
             end if;
 ```
 
-Assessment: ✅ Excellent IPv6 coverage including embedded IPv4
+Assessment: Excellent IPv6 coverage including embedded IPv4
 
 ---
-3.3 IPv6 Bracket Handling ✅ CORRECT
+3.3 IPv6 Bracket Handling - CORRECT
 
 File: /home/jbsco/cs/hadlink/spark-core/src/core.adb:103-113
 
@@ -324,10 +344,10 @@ begin
 end Get_Host_Content;
 ```
 
-Assessment: ✅ Properly strips [::1] format before checking
+Assessment: Properly strips [::1] format before checking
 
 ---
-3.4 DNS Rebinding Protection ⚠ NOT IMPLEMENTED
+3.4 DNS Rebinding Protection - NOT IMPLEMENTED
 
 Status: DOCUMENTED LIMITATION
 
@@ -343,14 +363,14 @@ Mitigation Strategy (from original analysis):
 - Not currently implemented in hadlink
 
 Assessment:
-- ⚠ DESIGN LIMITATION - not a bug, but acknowledged risk
+- DESIGN LIMITATION - not a bug, but acknowledged risk
 - Acceptable for threat model if redirect service is read-only
 - Suitable for deployments where internal SSRF is low-risk
 
 ---
 #### 4. CONFIGURATION SECURITY
 
-4.1 Secret Handling ✅ FIXED
+4.1 Secret Handling - FIXED
 
 File: /home/jbsco/cs/hadlink/haskell/app/Main.hs (lines 55-79)
 
@@ -386,15 +406,15 @@ secret <- case secretStr of
 ```
 
 Assessment:
-- ✅ BLOCKING: Must explicitly set HADLINK_SECRET
-- ✅ DEFENSIVE: Explicitly rejects insecure default value
-- ✅ CLEAR GUIDANCE: User gets helpful error messages
-- ✅ EMPTY CHECK: Prevents HADLINK_SECRET="" bypass
+- [x] BLOCKING: Must explicitly set HADLINK_SECRET
+- [x] DEFENSIVE: Explicitly rejects insecure default value
+- [x] CLEAR GUIDANCE: User gets helpful error messages
+- [x] EMPTY CHECK: Prevents HADLINK_SECRET="" bypass
 
 Verification: Redirect daemon sets cfgSecret = "" which is correct (not used)
 
 ---
-4.2 X-Forwarded-For Trust ✅ FIXED
+4.2 X-Forwarded-For Trust - FIXED
 
 File: /home/jbsco/cs/hadlink/haskell/app/Main.hs (lines 58, 83-84, 101-103)
 File: /home/jbsco/cs/hadlink/haskell/src/API.hs (lines 173-194)
@@ -441,11 +461,11 @@ when trustProxy $
 ```
 
 Assessment:
-- ✅ DISABLED BY DEFAULT: HADLINK_TRUST_PROXY=false
-- ✅ VALIDATION: Checks for valid IP characters (0-9, A-F, a-f, dots, colons)
-- ✅ SAFE FALLBACK: Invalid format → use socket address
-- ✅ CLEAR WARNING: Admin sees warning when enabled
-- ✅ TYPE SAFE: Added to Config type (Types.hs:94)
+- [x] DISABLED BY DEFAULT: HADLINK_TRUST_PROXY=false
+- [x] VALIDATION: Checks for valid IP characters (0-9, A-F, a-f, dots, colons)
+- [x] SAFE FALLBACK: Invalid format -> use socket address
+- [x] CLEAR WARNING: Admin sees warning when enabled
+- [x] TYPE SAFE: Added to Config type (Types.hs:94)
 
 Remaining Concern: Validation is basic character-level only
 - Allows any string of valid IP chars
@@ -455,7 +475,7 @@ Remaining Concern: Validation is basic character-level only
 Risk Assessment: LOW - Rate limiting gets arbitrary but syntactically valid IP. Potential DoS via cache pollution but not header spoofing.
 
 ---
-4.3 Default Configuration ✅ SAFE
+4.3 Default Configuration - SAFE
 
 File: /home/jbsco/cs/hadlink/haskell/app/Main.hs
 
@@ -467,93 +487,93 @@ Safe Defaults:
 - HADLINK_TRUST_PROXY=false - DEFAULT SECURE
 - HADLINK_RATE_LIMIT=10 requests per 60 seconds
 
-Assessment: ✅ All defaults are conservative/secure
+Assessment: All defaults are conservative/secure
 
 ---
 #### 5. DEPLOYMENT SECURITY
 
-5.1 Deploy Script ✅ FIXED
+5.1 Deploy Script - FIXED
 
 File: /home/jbsco/cs/hadlink/deploy/deploy.sh
 
 Status: FIXED (P1) - No longer sources untrusted .env
 
 Key Improvements:
-- ✅ load_env_safely() function (lines 28-76)
-- ✅ Whitelist validation: ^[a-zA-Z0-9_./-]*$
-- ✅ Numeric validation for ports: ^[0-9]+$
-- ✅ Quote removal before validation
-- ✅ case statement for known variables only
-- ✅ Unknown variables silently ignored
+- [x] load_env_safely() function (lines 28-76)
+- [x] Whitelist validation: ^[a-zA-Z0-9_./-]*$
+- [x] Numeric validation for ports: ^[0-9]+$
+- [x] Quote removal before validation
+- [x] case statement for known variables only
+- [x] Unknown variables silently ignored
 
-Assessment: ✅ EXCELLENT SECURITY IMPROVEMENT
+Assessment: EXCELLENT SECURITY IMPROVEMENT
 
 ---
-5.2 Docker Compose Security ✅ HARDENED
+5.2 Docker Compose Security - HARDENED
 
 File: /home/jbsco/cs/hadlink/deploy/docker/docker-compose.yml
 
 Shorten Service (lines 40-71):
-- ✅ read_only: true - Read-only root filesystem
-- ✅ cap_drop: [ALL] - No capabilities
-- ✅ security_opt: [no-new-privileges:true] - No privilege escalation
-- ✅ secrets: secret - Docker secrets (not env var)
-- ✅ Entrypoint: export HADLINK_SECRET=$(cat /run/secrets/secret) - Ephemeral loading
-- ✅ mem_limit: 128m - Memory cap
-- ✅ ports: 127.0.0.1:8443 - Loopback only
-- ✅ networks: internal, public - Separated networks
+- [x] read_only: true - Read-only root filesystem
+- [x] cap_drop: [ALL] - No capabilities
+- [x] security_opt: [no-new-privileges:true] - No privilege escalation
+- [x] secrets: secret - Docker secrets (not env var)
+- [x] Entrypoint: export HADLINK_SECRET=$(cat /run/secrets/secret) - Ephemeral loading
+- [x] mem_limit: 128m - Memory cap
+- [x] ports: 127.0.0.1:8443 - Loopback only
+- [x] networks: internal, public - Separated networks
 
 Redirect Service (lines 5-35):
-- ✅ All same security settings
-- ✅ ports: 8080:8080 - Public but read-only
-- ✅ mem_limit: 64m - Tighter memory
+- [x] All same security settings
+- [x] ports: 8080:8080 - Public but read-only
+- [x] mem_limit: 64m - Tighter memory
 
 Network Separation:
-- ✅ public network - Bridge, normal
-- ✅ internal network - Bridge with internal: true (no external access)
+- [x] public network - Bridge, normal
+- [x] internal network - Bridge with internal: true (no external access)
 
-Assessment: ✅ PRODUCTION-GRADE HARDENING
+Assessment: PRODUCTION-GRADE HARDENING
 
 Note: The command export HADLINK_SECRET=$(cat /run/secrets/secret) reads from Docker secrets (mounted at /run/secrets/), which is secure.
 
 ---
-5.3 Systemd Service Hardening ✅ SECURE
+5.3 Systemd Service Hardening - SECURE
 
 File: /home/jbsco/cs/hadlink/deploy/systemd/hadlink-shorten.service
 
 Security Hardening:
-- ✅ NoNewPrivileges=true - Prevents privilege escalation
-- ✅ ProtectSystem=strict - Read-only /usr, /boot, /etc except ReadWritePaths
-- ✅ ProtectHome=true - /home, /root, /run/user inaccessible
-- ✅ PrivateTmp=true - Private /tmp
-- ✅ PrivateDevices=true - No /dev access
-- ✅ ProtectKernelTunables=true - /proc/sys read-only
-- ✅ ProtectKernelModules=true - No module loading
-- ✅ ProtectControlGroups=true - /sys/fs/cgroup read-only
-- ✅ RestrictNamespaces=true - No new namespaces
-- ✅ RestrictRealtime=true - No realtime scheduling
-- ✅ RestrictSUIDSGID=true - No setuid/setgid
-- ✅ MemoryDenyWriteExecute=true - W^X enforcement
-- ✅ LockPersonality=true - No personality changes
-- ✅ MemoryMax=128M - Memory limit
-- ✅ User=hadlink - Non-root user
-- ✅ ReadWritePaths=/var/lib/hadlink - Only database dir writable
-- ✅ EnvironmentFile=/etc/hadlink/secret.conf - Secrets from file
+- [x] NoNewPrivileges=true - Prevents privilege escalation
+- [x] ProtectSystem=strict - Read-only /usr, /boot, /etc except ReadWritePaths
+- [x] ProtectHome=true - /home, /root, /run/user inaccessible
+- [x] PrivateTmp=true - Private /tmp
+- [x] PrivateDevices=true - No /dev access
+- [x] ProtectKernelTunables=true - /proc/sys read-only
+- [x] ProtectKernelModules=true - No module loading
+- [x] ProtectControlGroups=true - /sys/fs/cgroup read-only
+- [x] RestrictNamespaces=true - No new namespaces
+- [x] RestrictRealtime=true - No realtime scheduling
+- [x] RestrictSUIDSGID=true - No setuid/setgid
+- [x] MemoryDenyWriteExecute=true - W^X enforcement
+- [x] LockPersonality=true - No personality changes
+- [x] MemoryMax=128M - Memory limit
+- [x] User=hadlink - Non-root user
+- [x] ReadWritePaths=/var/lib/hadlink - Only database dir writable
+- [x] EnvironmentFile=/etc/hadlink/secret.conf - Secrets from file
 
-Assessment: ✅ COMPREHENSIVE HARDENING - Follows systemd security best practices
+Assessment: COMPREHENSIVE HARDENING - Follows systemd security best practices
 
 ---
-5.4 Secret Management ✅ SECURE
+5.4 Secret Management - SECURE
 
 Haskell Runtime (Main.hs lines 62-79):
-- ✅ Secret must be explicitly set
-- ✅ Empty string rejected
-- ✅ Insecure default explicitly rejected
+- [x] Secret must be explicitly set
+- [x] Empty string rejected
+- [x] Insecure default explicitly rejected
 
 Docker Deployment:
-- ✅ Uses Docker secrets (not environment variables)
-- ✅ Mounted at /run/secrets/secret
-- ✅ Only readable by container process
+- [x] Uses Docker secrets (not environment variables)
+- [x] Mounted at /run/secrets/secret
+- [x] Only readable by container process
 
 Systemd Deployment (deploy.sh lines 494-507):
 ```
@@ -566,16 +586,16 @@ chmod 600 /etc/hadlink/secret.conf
 rm -f /etc/hadlink/secret.key
 ```
 
-- ✅ Secret file deleted after processing
-- ✅ Secret.conf protected with chmod 600
-- ✅ EnvironmentFile only readable by process
+- [x] Secret file deleted after processing
+- [x] Secret.conf protected with chmod 600
+- [x] EnvironmentFile only readable by process
 
-Assessment: ✅ WELL-PROTECTED
+Assessment: WELL-PROTECTED
 
 ---
 #### 6. FFI BOUNDARY (Haskell/Ada Interface)
 
-6.1 Memory Safety ⚠ LOW RISK (Not Verified)
+6.1 Memory Safety - LOW RISK (Not Verified)
 
 File: /home/jbsco/cs/hadlink/haskell/src/SparkFFI.hs
 
@@ -595,12 +615,12 @@ Analysis Points:
 - Input validation prevents oversized URLs
 - Haskell side allocates sufficient buffer
 
-Recommendation: ✅ Acceptable - typical for FFI boundaries
+Recommendation: Acceptable - typical for FFI boundaries
 
 ---
 #### 7. PROOF-OF-WORK SECURITY
 
-7.1 Difficulty Calculation ✅ CORRECT
+7.1 Difficulty Calculation - CORRECT
 
 File: /home/jbsco/cs/hadlink/haskell/src/ProofOfWork.hs:43-53
 ```
@@ -616,7 +636,7 @@ where
    countLeadingZeros byte = length $ takeWhile not [testBit byte i | i <- [7,6..0]]
 ```
 
-Assessment: ✅ Correctly counts leading zero bits
+Assessment: Correctly counts leading zero bits
 
 Note: This function counts from bit 7 down to 0, properly measuring leading zeros.
 
@@ -628,9 +648,9 @@ P0 Items Status:
 ┌──────────────────────────┬─────────────────┬────────────────┬──────────────────────────────────────────────────────┐
 │         Finding          │ Previous Status │ Current Status │                     Verification                     │
 ├──────────────────────────┼─────────────────┼────────────────┼──────────────────────────────────────────────────────┤
-│ Insecure Default Secret  │ VULNERABLE      │ ✅ FIXED       │ Main.hs lines 55-79: die() on missing/default        │
+│ Insecure Default Secret  │ VULNERABLE      │ FIXED          │ Main.hs lines 55-79: die() on missing/default        │
 ├──────────────────────────┼─────────────────┼────────────────┼──────────────────────────────────────────────────────┤
-│ X-Forwarded-For Spoofing │ VULNERABLE      │ ✅ FIXED       │ API.hs lines 173-194: disabled by default, validated │
+│ X-Forwarded-For Spoofing │ VULNERABLE      │ FIXED          │ API.hs lines 173-194: disabled by default, validated │
 ├──────────────────────────┼─────────────────┼────────────────┼──────────────────────────────────────────────────────┤
 │ N/A                      │ -               │ -              │ -                                                    │
 └──────────────────────────┴─────────────────┴────────────────┴──────────────────────────────────────────────────────┘
@@ -641,9 +661,9 @@ P1 Items Status:
 ┌─────────────────────────┬─────────────────┬────────────────┬───────────────────────────────────────────────────┐
 │         Finding         │ Previous Status │ Current Status │                   Verification                    │
 ├─────────────────────────┼─────────────────┼────────────────┼───────────────────────────────────────────────────┤
-│ SSRF IPv6 Bypass        │ VULNERABLE      │ ✅ FIXED       │ core.adb lines 182-280: comprehensive IPv6 checks │
+│ SSRF IPv6 Bypass        │ VULNERABLE      │ FIXED          │ core.adb lines 182-280: comprehensive IPv6 checks │
 ├─────────────────────────┼─────────────────┼────────────────┼───────────────────────────────────────────────────┤
-│ Deploy Script Injection │ VULNERABLE      │ ✅ FIXED       │ deploy.sh lines 28-76: safe extraction            │
+│ Deploy Script Injection │ VULNERABLE      │ FIXED          │ deploy.sh lines 28-76: safe extraction            │
 └─────────────────────────┴─────────────────┴────────────────┴───────────────────────────────────────────────────┘
 ```
 
@@ -690,13 +710,13 @@ Timeline: Minor hygiene improvement
 9.4. Rate Limit Persistence (P3) - DOCUMENTED
 
 Risk: Design limitation, not a bug
-Status: ✅ Acknowledged and acceptable
+Status: Acknowledged and acceptable
 Timeline: Multi-instance deployments should use Redis
 
 9.5. DNS Rebinding (P2) - DOCUMENTED LIMIT
 
 Risk: Design limitation - string-based checks only
-Status: ✅ Acknowledged; acceptable for threat model
+Status: Acknowledged; acceptable for threat model
 Timeline: Would require DNS resolution at creation time
 
 ---
@@ -704,7 +724,7 @@ Timeline: Would require DNS resolution at creation time
 
 Analysis: Do Fixes Introduce New Vulnerabilities?
 
-✅ X-Forwarded-For Validation
+**X-Forwarded-For Validation** - No new issues
 
 Concern: Basic character validation might allow invalid IPs
 Assessment: NOT A PROBLEM
@@ -712,7 +732,7 @@ Assessment: NOT A PROBLEM
 - Invalid-format fallback to socket address
 - Database uses ValidURL (not user IP)
 
-✅ Secret Validation
+**Secret Validation** - No new issues
 
 Concern: Die() messages might leak that secret is present/not-present
 Assessment: ACCEPTABLE
@@ -720,7 +740,7 @@ Assessment: ACCEPTABLE
 - Timing difference <1ms (negligible)
 - Service won't start anyway, attack is pointless
 
-✅ Deploy Script Whitelist
+**Deploy Script Whitelist** - No new issues
 
 Concern: Restrictive pattern blocks some valid configs
 Assessment: ACCEPTABLE
@@ -736,28 +756,28 @@ Summary Table:
 ┌──────────────────┬───────────────┬───────────────────────────────────────────────────────┐
 │     Category     │    Status     │                         Notes                         │
 ├──────────────────┼───────────────┼───────────────────────────────────────────────────────┤
-│ Input Validation │ ✅ STRONG     │ SQL injection prevented, SPARK validates URLs         │
+│ Input Validation │ STRONG        │ SQL injection prevented, SPARK validates URLs         │
 ├──────────────────┼───────────────┼───────────────────────────────────────────────────────┤
-│ Authentication   │ ✅ ADEQUATE   │ API keys present, rate limiting working               │
+│ Authentication   │ ADEQUATE      │ API keys present, rate limiting working               │
 ├──────────────────┼───────────────┼───────────────────────────────────────────────────────┤
-│ SSRF Protection  │ ✅ GOOD       │ IPv4/IPv6 comprehensive (no DNS rebinding)            │
+│ SSRF Protection  │ GOOD          │ IPv4/IPv6 comprehensive (no DNS rebinding)            │
 ├──────────────────┼───────────────┼───────────────────────────────────────────────────────┤
-│ Configuration    │ ✅ EXCELLENT  │ Secret required, proxy disabled by default            │
+│ Configuration    │ EXCELLENT     │ Secret required, proxy disabled by default            │
 ├──────────────────┼───────────────┼───────────────────────────────────────────────────────┤
-│ Deployment       │ ✅ EXCELLENT  │ Docker/systemd hardened, script validated             │
+│ Deployment       │ EXCELLENT     │ Docker/systemd hardened, script validated             │
 ├──────────────────┼───────────────┼───────────────────────────────────────────────────────┤
-│ Cryptography     │ ✅ GOOD       │ HMAC-SHA256, proper nonce usage (except replay)       │
+│ Cryptography     │ GOOD          │ HMAC-SHA256, proper nonce usage (except replay)       │
 ├──────────────────┼───────────────┼───────────────────────────────────────────────────────┤
-│ Proof-of-Work    │ ⚠ ACCEPTABLE │ Replay vulnerability present but low practical impact │
+│ Proof-of-Work    │ ACCEPTABLE    │ Replay vulnerability present but low practical impact │
 ├──────────────────┼───────────────┼───────────────────────────────────────────────────────┤
-│ FFI Boundary     │ ✅ ACCEPTABLE │ Standard level of verification expected               │
+│ FFI Boundary     │ ACCEPTABLE    │ Standard level of verification expected               │
 └──────────────────┴───────────────┴───────────────────────────────────────────────────────┘
 ```
 
 ---
 ### RECOMMENDATIONS
 
-Immediate (Already Done ✅):
+Immediate (Already Done):
 
 - Fix insecure default secret
 - Make X-Forwarded-For configurable
@@ -790,14 +810,14 @@ Testing:
 
 hadlink has achieved a HIGH level of security maturity post-fixes.
 
-Critical Issues: ✅ ALL RESOLVED
+Critical Issues: ALL RESOLVED
 
 - Default secret: Fixed (blocking at startup)
 - XFF spoofing: Fixed (disabled by default, validated)
 - SSRF IPv6: Fixed (comprehensive checks)
 - Deploy injection: Fixed (safe extraction)
 
-Remaining Issues: ⚠ LOW PRACTICAL RISK
+Remaining Issues: LOW PRACTICAL RISK
 
 - PoW replay: Documented, needs server challenge (medium severity but rarely exploited)
 - Timing attacks: Negligible in production (network noise)
@@ -825,13 +845,13 @@ Verified Fixes
 ┌──────────────────────────────┬──────────┬──────────────────────────────────────────────────────────┐
 │            Issue             │  Status  │                       Verification                       │
 ├──────────────────────────────┼──────────┼──────────────────────────────────────────────────────────┤
-│ P0: Insecure Default Secret  │ ✅ FIXED │ die() on missing/default/empty secret                    │
+│ P0: Insecure Default Secret  │ FIXED    │ die() on missing/default/empty secret                    │
 ├──────────────────────────────┼──────────┼──────────────────────────────────────────────────────────┤
-│ P0: X-Forwarded-For Spoofing │ ✅ FIXED │ Disabled by default, IP format validated                 │
+│ P0: X-Forwarded-For Spoofing │ FIXED    │ Disabled by default, IP format validated                 │
 ├──────────────────────────────┼──────────┼──────────────────────────────────────────────────────────┤
-│ P1: SSRF IPv6 Bypass         │ ✅ FIXED │ Comprehensive IPv6 checks (::1, fe80::, fc00::, ::ffff:) │
+│ P1: SSRF IPv6 Bypass         │ FIXED    │ Comprehensive IPv6 checks (::1, fe80::, fc00::, ::ffff:) │
 ├──────────────────────────────┼──────────┼──────────────────────────────────────────────────────────┤
-│ P1: Deploy Script Injection  │ ✅ FIXED │ Safe whitelist extraction, no source                     │
+│ P1: Deploy Script Injection  │ FIXED    │ Safe whitelist extraction, no source                     │
 └──────────────────────────────┴──────────┴──────────────────────────────────────────────────────────┘
 ```
 

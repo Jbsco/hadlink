@@ -3,6 +3,22 @@
 
 [![Build](https://github.com/Jbsco/hadlink/actions/workflows/build.yml/badge.svg)](https://github.com/Jbsco/hadlink/actions/workflows/build.yml)[![Docker](https://github.com/Jbsco/hadlink/actions/workflows/deploy-docker.yml/badge.svg)](https://github.com/Jbsco/hadlink/actions/workflows/deploy-docker.yml)[![Systemd](https://github.com/Jbsco/hadlink/actions/workflows/deploy-systemd.yml/badge.svg)](https://github.com/Jbsco/hadlink/actions/workflows/deploy-systemd.yml)
 
+## Contents
+
+- [Example Use Cases](#example-use-cases)
+- [Why a URL Shortener?](#why-a-url-shortener)
+- [Architecture](#architecture)
+- [Status](#status)
+- [Quick Start](#quick-start)
+- [Deployment](#deployment)
+- [Security](#security)
+- [Threat Model](#threat-model)
+- [Assurance Model](#assurance-model)
+- [Documentation](#documentation)
+- [License](#license)
+
+---
+
 **hadlink** is a self-hosted, high-assurance URL shortener designed for:
 
 - Automated systems (CI/CD, monitoring)
@@ -119,10 +135,10 @@ The redirect path is optimized for speed (Warp + SQLite lookup). Create operatio
 
 ## Status
 
-**Version**: 0.1.0-dev
+**Version**: 1.0.0
 **Phase**: Phase 3 (Hardening) in progress
 
-- SPARK core 100% verified (135 proof checks)
+- SPARK core 100% verified (137 proof checks)
 - 24 property tests via Hedgehog (canonicalization, short codes, negative cases, rate limiting, proof-of-work)
 - Security self-audit complete (all P0/P1 items addressed)
 - Rate limiting integrated and tested (token bucket per IP)
@@ -138,7 +154,7 @@ See [ROADMAP.md](docs/ROADMAP.md) for details.
 
 **Docker** (recommended for deployment)
 
-- **[Docker](https://docs.docker.com/get-docker/)** with Compose plugin (Apache-2.0)
+- **[Docker Desktop](https://docs.docker.com/desktop/)** (Apache-2.0)
   ```bash
   ./deploy/deploy.sh docker start --generate-secret
   ```
@@ -229,80 +245,20 @@ curl -I http://localhost:8080/Bmx9c8bI
 
 ## Deployment
 
-Use the deployment script for quick setup:
-
 ```bash
-# Show all options
-./deploy/deploy.sh --help
-
 # Docker deployment with default settings
 ./deploy/deploy.sh docker start --generate-secret
 
 # Docker with proof-of-work enabled
 ./deploy/deploy.sh docker start --generate-secret --pow-difficulty 8 --pow-difficulty-auth 2
 
-# Stop/remove Docker deployment
+# Stop/remove
 ./deploy/deploy.sh docker stop
 ./deploy/deploy.sh docker remove              # Keeps data volume
 ./deploy/deploy.sh docker remove --remove-data  # Removes everything
-
-# Systemd deployment (requires root)
-sudo ./deploy/deploy.sh systemd start --generate-secret
-
-# Manage systemd deployment
-sudo ./deploy/deploy.sh systemd stop
-sudo ./deploy/deploy.sh systemd update        # Reload config and restart
-sudo ./deploy/deploy.sh systemd uninstall     # Removes services, keeps database
-sudo ./deploy/deploy.sh systemd uninstall --remove-data  # Removes everything
 ```
 
-### Manual Docker Setup
-
-```bash
-cd deploy/docker
-
-# Generate secret key (must be exactly 32 characters)
-openssl rand -hex 16 | tr -d '\n' > secret.key
-chmod 600 secret.key
-
-# Build and start services
-docker build -t hadlink:latest -f Dockerfile ../..
-docker compose up -d
-
-# Test the services
-curl -X POST http://127.0.0.1:8443/api/create \
-  -H "X-API-Key: test" \
-  -d "url=https://example.com"
-```
-
-### Manual systemd Setup
-
-```bash
-# Install binary and library
-sudo cp hadlink /usr/local/bin/
-sudo cp libHadlink_Core.so /usr/local/lib/
-sudo ldconfig
-
-# Create user and directories
-sudo useradd -r -s /sbin/nologin hadlink
-sudo mkdir -p /var/lib/hadlink /etc/hadlink
-sudo chown hadlink:hadlink /var/lib/hadlink
-
-# Install service files
-sudo cp deploy/systemd/*.service /etc/systemd/system/
-sudo cp deploy/systemd/hadlink.conf /etc/hadlink/
-
-# Generate secret and create secret.conf (secret must be exactly 32 characters)
-SECRET=$(openssl rand -hex 16)
-echo "HADLINK_SECRET=${SECRET}" | sudo tee /etc/hadlink/secret.conf > /dev/null
-sudo chmod 600 /etc/hadlink/secret.conf
-
-# Start services
-sudo systemctl daemon-reload
-sudo systemctl enable --now hadlink-shorten hadlink-redirect
-```
-
-See [docs/examples/README.md](docs/examples/README.md) for detailed deployment guides.
+For systemd deployment, manual setup, or additional options, see [DEPLOYMENT.md](docs/DEPLOYMENT.md).
 
 ---
 
@@ -358,50 +314,7 @@ Optional proof-of-work mitigates spam by requiring clients to compute a valid no
 - Anonymous requests require proof-of-work (when enabled)
 - Authenticated API clients may have reduced or bypassed PoW, but are subject to rate limits, revocation, and behavioral constraints
 
-**Configuration:**
-```bash
-# Secret key for HMAC-based short code generation (REQUIRED, must be set)
-# Generate with: openssl rand -hex 16
-export HADLINK_SECRET=<your-secret-key>
-
-# Difficulty = number of leading zero bits required in SHA256(url || nonce)
-# Higher values = more computation required (each +1 doubles average work)
-
-# Anonymous request difficulty (0 = disabled)
-export HADLINK_POW_DIFFICULTY=8
-
-# Authenticated request difficulty (0 = bypass, or set lower for defense-in-depth)
-export HADLINK_POW_DIFFICULTY_AUTH=2
-
-# API keys (comma-separated)
-export HADLINK_API_KEYS=ci-system-key,monitoring-key
-
-# Trust X-Forwarded-For header (only enable behind trusted reverse proxy)
-# Default: false (uses direct socket address for rate limiting)
-export HADLINK_TRUST_PROXY=false
-```
-
-**Example configurations:**
-| Scenario | `DIFFICULTY` | `DIFFICULTY_AUTH` | Effect |
-|----------|--------------|-------------------|--------|
-| PoW disabled | 0 | 0 | No PoW for anyone |
-| Anonymous only | 8 | 0 | Anonymous clients work, API keys bypass |
-| Defense-in-depth | 8 | 2 | Everyone works, API keys work less |
-| High security | 12 | 4 | Strong protection for both |
-
-**Client usage:**
-```bash
-# Anonymous: must find nonce where SHA256(canonical_url || nonce) has N leading zero bits
-curl -X POST http://hadlink.internal/api/create \
-  -d "url=https://example.com/path&nonce=<valid-nonce>"
-
-# Authenticated: uses reduced difficulty (or bypasses if DIFFICULTY_AUTH=0)
-curl -X POST http://hadlink.internal/api/create \
-  -H "X-API-Key: ci-system-key" \
-  -d "url=https://example.com/path&nonce=<valid-nonce>"
-```
-
-PoW is verified against the canonicalized URL. Since hadlink's canonicalization is minimal (scheme/host preserved exactly), clients can typically use the URL as-is.
+See [API Specification](docs/API.md#proof-of-work) for configuration and client implementation details.
 
 ### Reporting a Vulnerability
 
@@ -506,9 +419,11 @@ See [ROADMAP.md](docs/ROADMAP.md#do-278a-sil-3-mapping) for detailed objective m
 
 ## Documentation
 
+- **[API Specification](docs/API.md)** - HTTP API endpoints, request/response formats, configuration
+- **[Deployment Guide](docs/DEPLOYMENT.md)** - Docker, systemd, and manual setup instructions
 - **[Architecture](docs/)** - Design philosophy and dual-language approach
 - **[Build System](docs/build/)** - Using redo to build the project
-- **[Examples](docs/examples/)** - CI integration, monitoring, deployment
+- **[Examples](docs/examples/)** - CI integration, monitoring, configuration templates
 - **[Roadmap](docs/ROADMAP.md)** - Development phases and milestones
 - **[Contributing](docs/CONTRIBUTING.md)** - How to contribute
 

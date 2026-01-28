@@ -2,6 +2,23 @@
 
 This document outlines the planned development phases for hadlink.
 
+## Contents
+
+- [Core Principle](#core-principle)
+- [Phase 1: Haskell Implementation](#phase-1-haskell-implementation-v010)
+- [Phase 2: SPARK Core Extraction](#phase-2-spark-core-extraction-v050)
+- [Phase 3: Hardening & v1.0](#phase-3-hardening--v10-v100)
+  - [Lock SPARK Interface](#lock-spark-interface)
+  - [Separate Redirect/Shorten Binaries](#separate-redirectshorten-binaries)
+  - [Monitoring and Logging](#monitoring-and-logging)
+- [Future Considerations](#future-considerations-post-v10)
+- [Non-Goals](#non-goals)
+- [Current Status](#current-status)
+- [DO-278A SIL-3 Mapping](#do-278a-sil-3-mapping)
+- [Contributing](#contributing)
+
+---
+
 ## Core Principle
 
 Follow the migration plan: Haskell-only → SPARK extraction → frozen API.
@@ -90,7 +107,7 @@ Follow the migration plan: Haskell-only → SPARK extraction → frozen API.
 ### Milestone 3.1: Freeze SPARK API
 - [ ] Lock SPARK interface
 - [x] Full proof coverage (137 checks, 100% verified)
-- [ ] Comprehensive documentation
+- [x] Comprehensive documentation
 - [x] Security audit of boundary (P0/P1 items addressed)
 
 ### Milestone 3.2: Deployment Hardening
@@ -105,11 +122,43 @@ Follow the migration plan: Haskell-only → SPARK extraction → frozen API.
 - [ ] Monitoring and logging
 
 ### Milestone 3.3: Documentation
-- [ ] API specification
+- [x] API specification
 - [x] Deployment guide
 - [x] Security considerations
 - [x] Example integrations
 - [x] Contributing guidelines
+
+### Lock SPARK Interface
+
+The SPARK core API surface (`Canonicalize`, `Make_Short_Code`, and their FFI wrappers) should be declared frozen for v1.0. This means:
+
+- **Version the API**: Add a version constant to `core.ads` (e.g., `API_Version : constant := 1`) so callers can assert compatibility.
+- **Document the contract**: Record the current function signatures, preconditions, postconditions, and return codes as the stable interface. Changes after v1.0 require a major version bump.
+- **Restrict exports**: Audit `core_ffi.ads` to confirm only intended symbols are exported. Remove or mark internal helpers as private.
+- **Add a freeze test**: A dedicated test that compiles against the documented API and fails if signatures change. This can be a minimal C caller that links against `libHadlink_Core.so` and exercises both entry points.
+
+### Separate Redirect/Shorten Binaries
+
+Currently a single `hadlink` binary selects its mode via a CLI argument (`shorten` or `redirect`). Splitting into two binaries reduces attack surface and simplifies deployment.
+
+Approaches:
+
+- **Cabal internal libraries**: Factor shared code (Types, Store, SparkFFI) into an internal library. Define two executables in `hadlink.cabal`, each with its own `Main.hs` that imports only the modules it needs. The redirect binary would not link rate limiting, proof-of-work, or canonicalization modules.
+- **Conditional compilation**: Use CPP or Cabal flags to exclude unused modules per binary. Simpler but less clean than internal libraries.
+- **Shared library approach**: Build the shared modules as a Cabal library, then two thin executables. This is the standard Cabal pattern and allows downstream consumers.
+
+The redirect binary should be minimal: Warp, Store (read-only), and the resolve handler. It should not link SparkFFI, RateLimit, or ProofOfWork.
+
+### Monitoring and Logging
+
+The service currently has minimal logging (startup configuration echo). Production deployments need structured observability.
+
+Areas to address:
+
+- **Structured logging**: Use `fast-logger` or `co-log` to emit JSON log lines with timestamps, request IDs, client IPs, and outcomes (created, resolved, rejected, rate-limited). Log to stdout for compatibility with Docker and systemd journal.
+- **Metrics endpoint**: Add an optional `/metrics` endpoint (Prometheus format) exposing counters for requests by type, status codes, rate limit hits, and PoW rejections. Libraries like `prometheus-client` integrate with WAI middleware.
+- **Health check**: Add a `GET /health` endpoint that returns 200 if the service is operational and the database is reachable. Docker and systemd health checks can poll this instead of relying on port availability.
+- **Audit trail**: Optionally log link creation events (short code, timestamp, client IP) to a separate append-only log or database table. This is distinct from application logging and supports operational auditing.
 
 ### Deliverables
 - v1.0.0 release
@@ -162,7 +211,7 @@ The following will **not** be added to maintain scope:
 
 ## Current Status
 
-**Current Version**: v0.1.0-dev
+**Current Version**: v1.0.0
 **Current Phase**: Phase 3 (Hardening) in progress
 **Last Updated**: 2026-01-27
 
@@ -190,12 +239,12 @@ This project is designed and developed following the principles of DO-278A Softw
 
 | DO-278A Objective | hadlink Status | Notes |
 |-------------------|----------------|-------|
-| **Integrity Allocation** | ✓ Complete | SPARK core (high-integrity) / Haskell service (supporting) |
-| **Deterministic Core Behavior** | ✓ Complete | SPARK proves termination, bounded execution, no exceptions |
-| **Input Validation** | ✓ Complete | URL validation with proven postconditions |
-| **Assumption Documentation** | ✓ Complete | 2 `pragma Assume` confined to ghost lemma with rationale; see [GOLD_LEVEL_PROOFS.md](GOLD_LEVEL_PROOFS.md) |
-| **Verification Evidence** | ✓ Complete | GNATprove output (135 checks), Hedgehog tests (24 properties) |
-| **High-Level Requirements** | ✓ Complete | Invariants, non-goals, security constraints, abuse mitigation |
+| **Integrity Allocation** | Complete | SPARK core (high-integrity) / Haskell service (supporting) |
+| **Deterministic Core Behavior** | Complete | SPARK proves termination, bounded execution, no exceptions |
+| **Input Validation** | Complete | URL validation with proven postconditions |
+| **Assumption Documentation** | Complete | 2 `pragma Assume` confined to ghost lemma with rationale; see [GOLD_LEVEL_PROOFS.md](GOLD_LEVEL_PROOFS.md) |
+| **Verification Evidence** | Complete | GNATprove output (137 checks), Hedgehog tests (24 properties) |
+| **High-Level Requirements** | Complete | Invariants, non-goals, security constraints, abuse mitigation |
 | **Traceability** | Partial | Requirements documented; formal traceability matrix out of scope |
 | **Defined Baselines** | Out of Scope | Git tags serve as informal baselines |
 | **Change Classification** | Out of Scope | Single-developer workflow |
