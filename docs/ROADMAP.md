@@ -89,7 +89,7 @@ Follow the migration plan: Haskell-only → SPARK extraction → frozen API.
 
 ### Milestone 3.1: Freeze SPARK API
 - [ ] Lock SPARK interface
-- [x] Full proof coverage (135 checks, 100% verified)
+- [x] Full proof coverage (137 checks, 100% verified)
 - [ ] Comprehensive documentation
 - [x] Security audit of boundary (P0/P1 items addressed)
 
@@ -106,10 +106,10 @@ Follow the migration plan: Haskell-only → SPARK extraction → frozen API.
 
 ### Milestone 3.3: Documentation
 - [ ] API specification
-- [ ] Deployment guide
-- [ ] Security considerations
-- [ ] Example integrations
-- [ ] Contributing guidelines
+- [x] Deployment guide
+- [x] Security considerations
+- [x] Example integrations
+- [x] Contributing guidelines
 
 ### Deliverables
 - v1.0.0 release
