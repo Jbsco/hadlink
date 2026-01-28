@@ -73,6 +73,7 @@ jobs:
 
       - name: Clean and build
         run: |
+          set -o pipefail
           redo -x -v clean 2>&1 | tee clean-output.log
           redo -x -v all 2>&1 | tee build-output.log
 

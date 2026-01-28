@@ -193,16 +193,23 @@ package body Core is
          end;
       end if;
 
-      if H'Length >= 2 then
+      --  fc00::/7 - Unique Local Addresses (ULA)
+      --  This covers fc00:: through fdff::
+      --  Must check for hex digit or colon after prefix to avoid matching
+      --  domain names like fc.example.com
+      if H'Length >= 3 then
          declare
             Prefix2 : constant String := H (H'First .. H'First + 1);
+            Next_Ch : constant Character := H (H'First + 2);
+            Is_Hex  : constant Boolean :=
+              Next_Ch in '0' .. '9' | 'a' .. 'f' | 'A' .. 'F';
+            Is_Colon : constant Boolean := Next_Ch = ':';
          begin
-            --  fc00::/7 - Unique Local Addresses (ULA)
-            --  This covers fc00:: through fdff::
-            if Prefix2 = "fc" or else Prefix2 = "FC" or else
-               Prefix2 = "Fc" or else Prefix2 = "fC" or else
-               Prefix2 = "fd" or else Prefix2 = "FD" or else
-               Prefix2 = "Fd" or else Prefix2 = "fD"
+            if (Prefix2 = "fc" or else Prefix2 = "FC" or else
+                Prefix2 = "Fc" or else Prefix2 = "fC" or else
+                Prefix2 = "fd" or else Prefix2 = "FD" or else
+                Prefix2 = "Fd" or else Prefix2 = "fD") and then
+               (Is_Hex or else Is_Colon)
             then
                return True;
             end if;
