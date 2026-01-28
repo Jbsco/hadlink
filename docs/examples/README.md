@@ -76,7 +76,7 @@ cp docs/examples/config.example.yaml config.yaml
 ### Minimal Configuration
 
 ```yaml
-secret: "CHANGE_ME"
+secret: "YOUR_SECRET_HERE"  # Required - generate with: openssl rand -hex 16
 pow_difficulty: 0
 rate_limit:
   per_ip: 10
@@ -88,7 +88,24 @@ server:
   mode: shorten
   port: 8443
   bind: "127.0.0.1"
+  trust_proxy: false  # Set true only behind trusted reverse proxy
 ```
+
+### Behind a Reverse Proxy
+
+When running behind nginx, Caddy, or another reverse proxy, enable X-Forwarded-For trust:
+
+```bash
+# Environment variable
+export HADLINK_TRUST_PROXY=true
+```
+
+**Important**: Only enable this when:
+- hadlink is behind a trusted reverse proxy (nginx, Caddy, etc.)
+- The proxy correctly sets the X-Forwarded-For header
+- Direct access to hadlink is blocked (only proxy can reach it)
+
+When disabled (default), rate limiting uses the direct socket address, which would be the proxy's IP if behind a reverse proxy.
 
 ## Monitoring Integration
 
@@ -337,6 +354,20 @@ Or disable for authenticated keys in code.
 
 ## Troubleshooting
 
+### Service Won't Start
+
+**"HADLINK_SECRET environment variable is not set"**
+```bash
+# Generate and set a secret key
+export HADLINK_SECRET=$(openssl rand -hex 16)
+```
+
+**"HADLINK_SECRET is set to the insecure default value"**
+```bash
+# You must use a unique secret, not the example value
+export HADLINK_SECRET=$(openssl rand -hex 16)
+```
+
 ### Connection Refused
 
 Check that the daemon is running:
@@ -348,6 +379,12 @@ systemctl status hadlink-shorten
 
 Check your API key and rate limit configuration.
 
+If behind a reverse proxy, ensure `HADLINK_TRUST_PROXY=true` is set, otherwise all requests appear to come from the proxy's IP.
+
 ### Invalid URL
 
 Ensure URLs use http:// or https:// scheme and contain no credentials.
+
+Private/internal addresses are rejected:
+- IPv4: 10.x.x.x, 172.16-31.x.x, 192.168.x.x, 127.x.x.x, 169.254.x.x, 0.0.0.0
+- IPv6: ::1, ::, fe80::, fc00::, fd00::, ::ffff:private

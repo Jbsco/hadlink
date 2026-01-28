@@ -1,3 +1,7 @@
+> **Status Update (2026-01-27)**: This is the original analysis report. For current security status after fixes, see [README.md](README.md).
+
+---
+
 THOROUGH CODEBASE EXPLORATION REPORT: hadlink
 
 1. PROJECT OVERVIEW

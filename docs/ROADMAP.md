@@ -89,15 +89,19 @@ Follow the migration plan: Haskell-only → SPARK extraction → frozen API.
 
 ### Milestone 3.1: Freeze SPARK API
 - [ ] Lock SPARK interface
-- [ ] Full proof coverage
+- [x] Full proof coverage (135 checks, 100% verified)
 - [ ] Comprehensive documentation
-- [ ] Security audit of boundary
+- [x] Security audit of boundary (P0/P1 items addressed)
 
 ### Milestone 3.2: Deployment Hardening
 - [ ] Separate redirect/shorten binaries
 - [x] Read-only redirect daemon
 - [x] Systemd hardening
 - [x] Docker security options
+- [x] Secure secret handling (required at startup)
+- [x] X-Forwarded-For protection (configurable, disabled by default)
+- [x] Comprehensive SSRF protection (IPv4 + IPv6)
+- [x] Safe deploy script (.env injection prevention)
 - [ ] Monitoring and logging
 
 ### Milestone 3.3: Documentation
@@ -159,8 +163,8 @@ The following will **not** be added to maintain scope:
 ## Current Status
 
 **Current Version**: v0.1.0-dev
-**Current Phase**: Phase 2 Complete → Phase 3
-**Last Updated**: 2026-01-24
+**Current Phase**: Phase 3 (Hardening) in progress
+**Last Updated**: 2026-01-27
 
 **Achievements**:
 - FFI integration complete: Haskell calls SPARK core for URL validation and short code generation
@@ -170,6 +174,11 @@ The following will **not** be added to maintain scope:
 - Docker deployment: Multi-stage Dockerfile, security-hardened docker-compose with health checks
 - Systemd deployment: Hardened service units with comprehensive security directives
 - CI workflows: Docker build/test and systemd validation workflows
+- Security self-audit complete: All P0/P1 vulnerabilities addressed
+  - Secret key now required at startup (no insecure defaults)
+  - X-Forwarded-For header trust configurable (disabled by default)
+  - SSRF protection extended to IPv6 (loopback, link-local, ULA, mapped IPv4)
+  - Deploy script hardened against .env injection
 
 ---
 
@@ -185,7 +194,7 @@ This project is designed and developed following the principles of DO-278A Softw
 | **Deterministic Core Behavior** | ✓ Complete | SPARK proves termination, bounded execution, no exceptions |
 | **Input Validation** | ✓ Complete | URL validation with proven postconditions |
 | **Assumption Documentation** | ✓ Complete | 2 `pragma Assume` confined to ghost lemma with rationale; see [GOLD_LEVEL_PROOFS.md](GOLD_LEVEL_PROOFS.md) |
-| **Verification Evidence** | ✓ Complete | GNATprove output (111 checks), Hedgehog tests (24 properties) |
+| **Verification Evidence** | ✓ Complete | GNATprove output (135 checks), Hedgehog tests (24 properties) |
 | **High-Level Requirements** | ✓ Complete | Invariants, non-goals, security constraints, abuse mitigation |
 | **Traceability** | Partial | Requirements documented; formal traceability matrix out of scope |
 | **Defined Baselines** | Out of Scope | Git tags serve as informal baselines |

@@ -120,10 +120,11 @@ The redirect path is optimized for speed (Warp + SQLite lookup). Create operatio
 ## Status
 
 **Version**: 0.1.0-dev
-**Phase**: Phase 2 complete, preparing for hardening
+**Phase**: Phase 3 (Hardening) in progress
 
-- SPARK core 100% verified (URL validation, short code generation)
+- SPARK core 100% verified (135 proof checks)
 - 24 property tests via Hedgehog (canonicalization, short codes, negative cases, rate limiting, proof-of-work)
+- Security self-audit complete (all P0/P1 items addressed)
 - Rate limiting integrated and tested (token bucket per IP)
 - FFI boundary stable
 
@@ -347,6 +348,7 @@ For best security:
 - Run services with least privilege
 - Use read-only filesystems where possible
 - Monitor logs for abnormal creation rates
+- Set `HADLINK_TRUST_PROXY=true` only when behind a trusted reverse proxy
 
 ### Proof-of-Work
 
@@ -358,6 +360,10 @@ Optional proof-of-work mitigates spam by requiring clients to compute a valid no
 
 **Configuration:**
 ```bash
+# Secret key for HMAC-based short code generation (REQUIRED, must be set)
+# Generate with: openssl rand -hex 16
+export HADLINK_SECRET=<your-secret-key>
+
 # Difficulty = number of leading zero bits required in SHA256(url || nonce)
 # Higher values = more computation required (each +1 doubles average work)
 
@@ -369,6 +375,10 @@ export HADLINK_POW_DIFFICULTY_AUTH=2
 
 # API keys (comma-separated)
 export HADLINK_API_KEYS=ci-system-key,monitoring-key
+
+# Trust X-Forwarded-For header (only enable behind trusted reverse proxy)
+# Default: false (uses direct socket address for rate limiting)
+export HADLINK_TRUST_PROXY=false
 ```
 
 **Example configurations:**
@@ -430,7 +440,7 @@ Mitigations: HMAC-derived short codes, no sequential identifiers, fixed-length B
 
 **3. SSRF Attackers** - Attempt to use the service to access internal resources
 
-Mitigations: Strict URL validation, private IP ranges rejected, non-HTTP(S) schemes rejected
+Mitigations: Strict URL validation, private IP ranges rejected (IPv4 and IPv6), link-local addresses rejected, non-HTTP(S) schemes rejected
 
 **4. DoS Attackers** - Attempt to exhaust CPU, memory, or storage
 
