@@ -391,7 +391,7 @@ docker_shell() {
         echo "  - Checking logs and environment"
         echo ""
         echo "For development with persistent changes, add a bind mount:"
-        echo "  See docs/examples/README.md for development setup instructions."
+        echo "  See docs/DEPLOYMENT.md for development setup instructions."
         echo ""
     fi
 

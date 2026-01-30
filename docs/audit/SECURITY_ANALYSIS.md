@@ -4,6 +4,16 @@
 
 Hadlink Security Vulnerability Analysis Report
 
+## Contents
+
+- [Executive Summary](#executive-summary)
+- [Findings by Severity](#findings-by-severity)
+- [Threat Model Gaps](#threat-model-gaps)
+- [Recommended Prioritized Actions](#recommended-prioritized-actions)
+- [Conclusion](#conclusion)
+
+---
+
 ## Executive Summary
 
 hadlink is a high-assurance URL shortener designed with security as a primary goal. The codebase demonstrates strong security architecture with formally verified core logic

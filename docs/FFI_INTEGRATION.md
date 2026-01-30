@@ -1,5 +1,19 @@
 # FFI Integration Technical Notes
 
+## Contents
+
+- [Current Status](#current-status)
+- [Historical Context: The Problem](#historical-context-the-problem-solved)
+- [Root Cause](#root-cause-historical)
+- [Attempted Solutions](#attempted-solutions)
+- [Proper Solutions](#proper-solutions)
+- [Solution Implemented](#solution-implemented)
+- [References](#references)
+- [Files Modified for FFI](#files-modified-for-ffi)
+- [Testing](#testing)
+
+---
+
 ## Current Status
 
 [x] **Phase 2.5 FFI integration is COMPLETE!**

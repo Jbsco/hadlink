@@ -4,6 +4,19 @@ This document describes the proof strategy used to achieve near-Gold-level SPARK
 
 For background on SPARK verification methodology, see the [Implementation Guidance for the Adoption of SPARK](https://www.adacore.com/uploads/books/Spark-Guidance-1.2-web.pdf) (AdaCore & Thales).
 
+## Contents
+
+- [Background](#background)
+- [The Problem](#the-problem)
+- [Approaches Considered](#approaches-considered)
+- [Solution: Unified Functions with Ghost Lemma](#solution-unified-functions-with-ghost-lemma)
+- [Proof Chain](#proof-chain)
+- [Results](#results)
+- [Remaining Assumes](#remaining-assumes)
+- [Related Documentation](#related-documentation)
+
+---
+
 ## Background
 
 SPARK verification levels (per AdaCore) progress from Stone to Platinum:

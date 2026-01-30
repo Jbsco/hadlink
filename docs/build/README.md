@@ -2,6 +2,20 @@
 
 hadlink uses `redo` as its build system, which aligns with the project's embedded/minimalist philosophy.
 
+## Contents
+
+- [Why redo?](#why-redo)
+- [Prerequisites](#prerequisites)
+- [Building](#building)
+- [Development Workflow](#development-workflow)
+- [Build Scripts](#build-scripts)
+- [Continuous Integration](#continuous-integration)
+- [Troubleshooting](#troubleshooting)
+- [Advanced Usage](#advanced-usage)
+- [References](#references)
+
+---
+
 ## Why redo?
 
 - Simple, declarative build scripts

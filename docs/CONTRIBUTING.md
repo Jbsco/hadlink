@@ -2,6 +2,22 @@
 
 Contributions are welcome. This document outlines expectations and workflow.
 
+## Contents
+
+- [Core Principles](#core-principles)
+- [What to Contribute](#what-to-contribute)
+- [Development Setup](#development-setup)
+- [Testing](#testing)
+- [Commit Guidelines](#commit-guidelines)
+- [Pull Request Process](#pull-request-process)
+- [Code Style](#code-style)
+- [Documentation](#documentation)
+- [Security](#security)
+- [Non-Goals Enforcement](#non-goals-enforcement)
+- [License](#license)
+- [Questions](#questions)
+- [Recognition](#recognition)
+
 ---
 
 ## Core Principles
