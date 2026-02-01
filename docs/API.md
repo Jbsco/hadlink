@@ -84,7 +84,7 @@ Create a short link from a URL.
 | Field | Type | Description |
 |-------|------|-------------|
 | `code` | string | 8-character Base62 short code |
-| `short` | string | Full short URL including base |
+| `short` | string | Full short URL (uses `HADLINK_BASE_URL`, default: `http://localhost:$HADLINK_PORT`) |
 
 **Errors:**
 

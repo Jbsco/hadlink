@@ -145,8 +145,12 @@ createShortLink config store logger req validUrl respond = do
   put shortCode validUrl store
 
   let ShortCode code = shortCode
+      baseURL = cfgBaseURL config
+      -- Strip trailing slash if present to avoid double-slash
+      base = if T.null baseURL then "" else
+             if T.last baseURL == '/' then T.init baseURL else baseURL
       response = object
-        [ "short" .= ("http://localhost:8080/" <> code)
+        [ "short" .= (base <> "/" <> code)
         , "code" .= code
         ]
   logInfo logger "Link created" [("code", code)]

@@ -66,6 +66,8 @@ main =
         Just s | null s -> die "ERROR: HADLINK_SECRET is empty. Please set a non-empty secret key."
         Just s -> return $ BS8.pack s
 
+    baseURLStr <- getEnvWithDefault "HADLINK_BASE_URL" ("http://localhost:" ++ show port)
+
     let powDifficulty = read powDiffStr
         powDifficultyAuth = read powDiffAuthStr
         apiKeys = parseAPIKeys apiKeysStr
@@ -79,6 +81,7 @@ main =
           , cfgStoragePath = storagePath
           , cfgAPIKeys = apiKeys
           , cfgTrustProxy = trustProxy
+          , cfgBaseURL = T.pack baseURLStr
           }
 
     logInfo logger "Starting shorten daemon" [("port", T.pack (show port))]
