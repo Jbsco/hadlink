@@ -9,7 +9,7 @@ cd "$(dirname "$0")"
 redo-ifchange ../spark-core/build
 
 # Declare dependency on cabal file and source files
-redo-ifchange hadlink.cabal $(find src app -name '*.hs' 2>/dev/null)
+redo-ifchange hadlink.cabal $(find src src-shorten app -name '*.hs' 2>/dev/null)
 
 echo "Building Haskell components..."
 stack build --test --no-run-tests

@@ -426,10 +426,10 @@ systemd_start() {
     fi
 
     # Check for binaries
-    if [ ! -f "$INSTALL_DIR/bin/hadlink" ]; then
-        log_warn "hadlink binary not found at $INSTALL_DIR/bin/hadlink"
-        echo "Please install the binary first:"
-        echo "  sudo cp hadlink $INSTALL_DIR/bin/"
+    if [ ! -f "$INSTALL_DIR/bin/hadlink-shorten" ] || [ ! -f "$INSTALL_DIR/bin/hadlink-redirect" ]; then
+        log_warn "hadlink binaries not found at $INSTALL_DIR/bin/"
+        echo "Please install the binaries first:"
+        echo "  sudo cp hadlink-shorten hadlink-redirect $INSTALL_DIR/bin/"
         echo "  sudo cp libHadlink_Core.so $INSTALL_DIR/lib/"
         echo "  sudo ldconfig"
         exit 1
@@ -513,14 +513,14 @@ EOF
     # Redirect service
     sed -e "s|Environment=HADLINK_PORT=8080|Environment=HADLINK_PORT=${REDIRECT_PORT}|g" \
         -e "s|Environment=HADLINK_STORAGE=.*|Environment=HADLINK_STORAGE=${DATA_DIR}/hadlink.db|g" \
-        -e "s|ExecStart=.*|ExecStart=${INSTALL_DIR}/bin/hadlink redirect|g" \
+        -e "s|ExecStart=.*|ExecStart=${INSTALL_DIR}/bin/hadlink-redirect|g" \
         -e "s|ReadOnlyPaths=.*|ReadOnlyPaths=${DATA_DIR}|g" \
         "$SYSTEMD_DIR/hadlink-redirect.service" > /etc/systemd/system/hadlink-redirect.service
 
     # Shorten service
     sed -e "s|Environment=HADLINK_PORT=8443|Environment=HADLINK_PORT=${SHORTEN_PORT}|g" \
         -e "s|Environment=HADLINK_STORAGE=.*|Environment=HADLINK_STORAGE=${DATA_DIR}/hadlink.db|g" \
-        -e "s|ExecStart=.*|ExecStart=${INSTALL_DIR}/bin/hadlink shorten|g" \
+        -e "s|ExecStart=.*|ExecStart=${INSTALL_DIR}/bin/hadlink-shorten|g" \
         -e "s|ReadWritePaths=.*|ReadWritePaths=${DATA_DIR}|g" \
         "$SYSTEMD_DIR/hadlink-shorten.service" > /etc/systemd/system/hadlink-shorten.service
 
@@ -644,7 +644,7 @@ systemd_uninstall() {
 
     echo ""
     echo "The following will NOT be removed (remove manually if desired):"
-    echo "  - /usr/local/bin/hadlink (binary)"
+    echo "  - /usr/local/bin/hadlink-shorten, hadlink-redirect (binaries)"
     echo "  - /usr/local/lib/libHadlink_Core.so (library)"
     echo "  - hadlink user account"
     if [ "$REMOVE_DATA" != true ]; then
@@ -696,7 +696,7 @@ systemd_uninstall() {
     log_info "Uninstall complete"
     echo ""
     echo "To fully remove hadlink, also run:"
-    echo "  sudo rm -f /usr/local/bin/hadlink"
+    echo "  sudo rm -f /usr/local/bin/hadlink-shorten /usr/local/bin/hadlink-redirect"
     echo "  sudo rm -f /usr/local/lib/libHadlink_Core.so"
     echo "  sudo ldconfig"
     echo "  sudo userdel hadlink"

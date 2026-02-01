@@ -96,9 +96,11 @@ jobs:
         if: success()
         run: |
           mkdir -p dist
-          # Copy Haskell executable
-          cp haskell/.stack-work/install/*/bin/hadlink dist/ 2>/dev/null || \
-            find haskell/.stack-work -name hadlink -type f -executable -exec cp {} dist/ \;
+          # Copy Haskell executables
+          for bin in hadlink-shorten hadlink-redirect; do
+            cp haskell/.stack-work/install/*/bin/$bin dist/ 2>/dev/null || \
+              find haskell/.stack-work -name $bin -type f -executable -exec cp {} dist/ \;
+          done
           # Copy SPARK shared library
           cp spark-core/lib/libHadlink_Core.so dist/
           # Create version info

@@ -52,10 +52,8 @@ jobs:
           cat > docker-compose.override.yml << EOF
           services:
             shorten:
-              entrypoint: ["/usr/local/bin/hadlink"]
-              command: ["shorten"]
-              environment:
-                - HADLINK_SECRET=${TEST_SECRET}
+              entrypoint: ["/bin/sh", "-c"]
+              command: ["export HADLINK_SECRET=${TEST_SECRET} && exec /usr/local/bin/hadlink-shorten"]
           EOF
 
       - name: Start services

@@ -66,8 +66,10 @@ RUN stack build --system-ghc --no-install-ghc || stack build
 # Find and stage the built artifacts
 RUN mkdir -p /dist/lib /dist/bin \
     && cp /build/spark-core/lib/libHadlink_Core.so /dist/lib/ \
-    && (cp /build/haskell/.stack-work/install/*/bin/hadlink /dist/bin/ 2>/dev/null \
-        || find /build/haskell/.stack-work -name hadlink -type f -executable -exec cp {} /dist/bin/ \;)
+    && for bin in hadlink-shorten hadlink-redirect; do \
+         cp /build/haskell/.stack-work/install/*/bin/$bin /dist/bin/ 2>/dev/null \
+         || find /build/haskell/.stack-work -name $bin -type f -executable -exec cp {} /dist/bin/ \; ; \
+       done
 
 # =============================================================================
 # Runtime Stage
@@ -89,7 +91,8 @@ RUN useradd -r -s /sbin/nologin -u 1000 hadlink \
     && chown hadlink:hadlink /data /var/lib/hadlink
 
 # Copy built artifacts
-COPY --from=builder /dist/bin/hadlink /usr/local/bin/hadlink
+COPY --from=builder /dist/bin/hadlink-shorten /usr/local/bin/hadlink-shorten
+COPY --from=builder /dist/bin/hadlink-redirect /usr/local/bin/hadlink-redirect
 COPY --from=builder /dist/lib/libHadlink_Core.so /usr/local/lib/
 
 # Set library path
@@ -99,7 +102,7 @@ ENV LD_LIBRARY_PATH=/usr/local/lib
 RUN ldconfig
 
 # Set ownership and permissions
-RUN chmod 755 /usr/local/bin/hadlink \
+RUN chmod 755 /usr/local/bin/hadlink-shorten /usr/local/bin/hadlink-redirect \
     && chmod 644 /usr/local/lib/libHadlink_Core.so
 
 # Switch to non-root user
@@ -116,6 +119,5 @@ EXPOSE 8080 8443
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
     CMD curl -s -o /dev/null http://localhost:${HADLINK_PORT}/ || exit 1
 
-# Entrypoint allows mode selection: "redirect" or "shorten"
-ENTRYPOINT ["/usr/local/bin/hadlink"]
-CMD ["redirect"]
+# Default to redirect daemon
+CMD ["/usr/local/bin/hadlink-redirect"]

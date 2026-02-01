@@ -105,13 +105,13 @@ Follow the migration plan: Haskell-only → SPARK extraction → frozen API.
 **Goal**: Production-ready, frozen API.
 
 ### Milestone 3.1: Freeze SPARK API
-- [ ] Lock SPARK interface
+- [x] Lock SPARK interface
 - [x] Full proof coverage (137 checks, 100% verified)
 - [x] Comprehensive documentation
 - [x] Security audit of boundary (P0/P1 items addressed)
 
 ### Milestone 3.2: Deployment Hardening
-- [ ] Separate redirect/shorten binaries
+- [x] Separate redirect/shorten binaries
 - [x] Read-only redirect daemon
 - [x] Systemd hardening
 - [x] Docker security options
@@ -119,7 +119,7 @@ Follow the migration plan: Haskell-only → SPARK extraction → frozen API.
 - [x] X-Forwarded-For protection (configurable, disabled by default)
 - [x] Comprehensive SSRF protection (IPv4 + IPv6)
 - [x] Safe deploy script (.env injection prevention)
-- [ ] Monitoring and logging
+- [x] Monitoring and logging
 
 ### Milestone 3.3: Documentation
 - [x] API specification

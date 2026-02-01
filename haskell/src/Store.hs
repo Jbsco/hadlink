@@ -24,6 +24,7 @@ module Store
   , put
   , get
   , exists
+  , ping
   , withStore
   ) where
 
@@ -94,6 +95,14 @@ exists shortCode (SQLiteStore conn) = do
     "SELECT 1 FROM links WHERE short_code = ? LIMIT 1"
     (SQL.Only code) :: IO [SQL.Only Int]
   return $ not (null results)
+
+-- | Check database connectivity
+ping :: SQLiteStore -> IO Bool
+ping (SQLiteStore conn) = do
+  results <- SQL.query_ conn "SELECT 1" :: IO [SQL.Only Int]
+  case results of
+    [SQL.Only 1] -> return True
+    _ -> return False
 
 -- | Helper to run store operations with automatic cleanup
 withStore :: FilePath -> (SQLiteStore -> IO a) -> IO a

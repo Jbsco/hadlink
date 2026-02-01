@@ -18,38 +18,27 @@
 
 module Main (main) where
 
-import System.Environment (getArgs, lookupEnv)
+import System.Environment (lookupEnv)
 import System.Exit (die)
 import Control.Monad (when)
+import Control.Exception (bracket)
 import Data.Maybe (fromMaybe)
 import Data.Char (toLower)
 import qualified Data.ByteString.Char8 as BS8
 import qualified Data.Text as T
 import Network.Wai.Handler.Warp (run)
 
-import API
+import API.Shorten (shortenApp)
 import Store
 import Types
 import RateLimit (newRateLimiter)
-import SparkFFI (initSpark)
+import SparkFFI (initSpark, finalizeSpark)
+import Logging (newLogger, closeLogger, logInfo)
 
 main :: IO ()
-main = do
-    --  Initialize Ada runtime for SPARK FFI
-    initSpark
-    
-    args <- getArgs
-    case args of
-        ["shorten"] -> runShortenDaemon
-        ["redirect"] -> runRedirectDaemon
-        ["version"] -> putStrLn "hadlink v0.1.0-dev"
-        _ -> die "Usage: hadlink {shorten|redirect|version}"
-
--- | Run shorten daemon (creation service)
--- Accepts untrusted input, performs validation, writes to storage
-runShortenDaemon :: IO ()
-runShortenDaemon = do
-    -- Get configuration from environment
+main =
+    bracket initSpark (const finalizeSpark) $ \_ ->
+    bracket newLogger closeLogger $ \logger -> do
     port <- read <$> getEnvWithDefault "HADLINK_PORT" "8443"
     storagePath <- getEnvWithDefault "HADLINK_STORAGE" "./hadlink.db"
     secretStr <- lookupEnv "HADLINK_SECRET"
@@ -58,7 +47,6 @@ runShortenDaemon = do
     apiKeysStr <- getEnvWithDefault "HADLINK_API_KEYS" ""
     trustProxyStr <- getEnvWithDefault "HADLINK_TRUST_PROXY" "false"
 
-    -- Validate secret: must be set and not the insecure default
     let insecureDefault = "CHANGE_ME_INSECURE_DEFAULT"
     secret <- case secretStr of
         Nothing -> die $ unlines
@@ -93,59 +81,26 @@ runShortenDaemon = do
           , cfgTrustProxy = trustProxy
           }
 
-    putStrLn $ "Starting shorten daemon on port " ++ show port
-    putStrLn $ "Storage: " ++ storagePath
-    putStrLn $ "PoW difficulty: " ++ show powDifficulty ++ " (anonymous), " ++ show powDifficultyAuth ++ " (authenticated)"
-    putStrLn $ "API keys configured: " ++ show (length apiKeys)
-    putStrLn $ "Rate limit: " ++ show (cfgRateLimitPerIP config) ++ " requests per " ++ show (cfgRateLimitWindow config) ++ "s"
-    putStrLn $ "Trust proxy (X-Forwarded-For): " ++ show trustProxy
-    when trustProxy $
-        putStrLn "WARNING: X-Forwarded-For trusted. Only enable behind a trusted reverse proxy!"
+    logInfo logger "Starting shorten daemon" [("port", T.pack (show port))]
+    logInfo logger "Configuration"
+      [ ("storage", T.pack storagePath)
+      , ("pow_difficulty", T.pack (show powDifficulty))
+      , ("pow_difficulty_auth", T.pack (show powDifficultyAuth))
+      , ("api_keys", T.pack (show (length apiKeys)))
+      , ("trust_proxy", T.pack (show trustProxy))
+      ]
 
-    -- Initialize storage
+    when trustProxy $
+        logInfo logger "WARNING: X-Forwarded-For trusted. Only enable behind a trusted reverse proxy!" []
+
     store <- openStore storagePath
     initializeStore store
 
-    -- Initialize rate limiter
     limiter <- newRateLimiter config
 
-    putStrLn "Ready to accept requests"
+    logInfo logger "Ready to accept requests" []
 
-    -- Start HTTP server
-    run port (app config store limiter)
-
--- | Run redirect daemon (resolution service)
--- Fast, read-only, performs single lookup and redirect
-runRedirectDaemon :: IO ()
-runRedirectDaemon = do
-    port <- read <$> getEnvWithDefault "HADLINK_PORT" "8080"
-    storagePath <- getEnvWithDefault "HADLINK_STORAGE" "./hadlink.db"
-
-    putStrLn $ "Starting redirect daemon on port " ++ show port
-    putStrLn $ "Storage: " ++ storagePath ++ " (read-only)"
-
-    -- Open storage (read-only in practice, SQLite doesn't have true RO without filesystem perms)
-    store <- openStore storagePath
-
-    -- Minimal config for redirect-only
-    let config = Config
-          { cfgSecret = ""  -- Not used by redirect
-          , cfgPowDifficulty = 0
-          , cfgPowDifficultyAuth = 0
-          , cfgRateLimitPerIP = 0
-          , cfgRateLimitWindow = 0
-          , cfgStoragePath = storagePath
-          , cfgAPIKeys = []
-          , cfgTrustProxy = False  -- Redirect daemon doesn't use rate limiting
-          }
-
-    -- Initialize rate limiter (not used by redirect, but required by app signature)
-    limiter <- newRateLimiter config
-
-    putStrLn "Ready to redirect"
-
-    -- Start HTTP server (only GET requests handled)
-    run port (app config store limiter)
+    run port (shortenApp config store limiter logger)
 
 -- | Helper to get environment variable with default
 getEnvWithDefault :: String -> String -> IO String

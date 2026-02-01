@@ -134,4 +134,9 @@ package body Core_FFI is
       return 0;
    end Make_Short_Code_FFI;
 
+   function Hadlink_API_Version return unsigned is
+   begin
+      return unsigned (Core.API_Version);
+   end Hadlink_API_Version;
+
 end Core_FFI;

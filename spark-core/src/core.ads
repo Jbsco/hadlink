@@ -29,6 +29,18 @@ package Core with Pure is
    --  Base62 alphabet size
    Base62_Size : constant := 62;
 
+   ---------------------------------------------------------------------------
+   --  Frozen API Version
+   --
+   --  This constant identifies the stable SPARK core API surface.
+   --  The exported FFI functions (hadlink_canonicalize,
+   --  hadlink_make_short_code, hadlink_api_version) and their
+   --  signatures, preconditions, postconditions,
+   --  and return codes are frozen as of this version.
+   --  Any breaking change requires incrementing API_Version.
+   ---------------------------------------------------------------------------
+   API_Version : constant Natural := 1;
+
    --  URL length constraints
    subtype URL_Length is Natural range 1 .. Max_URL_Length;
 

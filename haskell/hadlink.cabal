@@ -1,4 +1,4 @@
-cabal-version: 2.4
+cabal-version: 3.0
 name:          hadlink
 version:       0.1.0.0
 synopsis:      High-assurance URL shortener with SPARK proofs
@@ -23,28 +23,54 @@ common common-options
     -Wmissing-export-lists
     -Wpartial-fields
     -Werror
-  
+
   default-extensions:
     OverloadedStrings
     DeriveGeneric
     LambdaCase
     RecordWildCards
 
-library
+-- Shared types, store, resolve handler, logging, health
+-- No SPARK/FFI dependency
+library hadlink-common
   import: common-options
+  visibility: private
   hs-source-dirs: src
   exposed-modules:
     Types
-    Canonicalize
-    ShortCode
     Store
-    API
-    RateLimit
-    ProofOfWork
-    SparkFFI
-  
+    API.Resolve
+    Logging
+    Health
+
   build-depends:
     base >= 4.14 && < 5,
+    text >= 1.2,
+    bytestring >= 0.10,
+    wai >= 3.2,
+    http-types >= 0.12,
+    sqlite-simple >= 0.4,
+    containers >= 0.6,
+    aeson >= 2.0,
+    fast-logger >= 3.0
+
+-- Shorten service: SPARK FFI, canonicalization, rate limiting, PoW
+library hadlink-shorten-lib
+  import: common-options
+  visibility: private
+  hs-source-dirs: src-shorten
+  exposed-modules:
+    Canonicalize
+    ShortCode
+    SparkFFI
+    RateLimit
+    ProofOfWork
+    API.Shorten
+    API
+
+  build-depends:
+    base >= 4.14 && < 5,
+    hadlink:hadlink-common,
     text >= 1.2,
     bytestring >= 0.10,
     warp >= 3.3,
@@ -58,8 +84,9 @@ library
     stm >= 2.5,
     network >= 3.1,
     network-uri >= 2.6,
-    aeson >= 2.0
-  
+    aeson >= 2.0,
+    fast-logger >= 3.0
+
   -- Note: Using ld-options instead of extra-lib-dirs/extra-libraries
   -- to avoid package registration errors with relative paths.
   -- Cabal will warn about this, but it's intentional for FFI linking.
@@ -67,16 +94,30 @@ library
     -L../spark-core/lib
     -lHadlink_Core
 
-executable hadlink
+executable hadlink-shorten
   import: common-options
-  main-is: Main.hs
+  main-is: ShortenMain.hs
   hs-source-dirs: app
 
   build-depends:
     base,
-    hadlink,
+    hadlink:hadlink-shorten-lib,
+    hadlink:hadlink-common,
     text,
     bytestring,
+    warp
+
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N
+
+executable hadlink-redirect
+  import: common-options
+  main-is: RedirectMain.hs
+  hs-source-dirs: app
+
+  build-depends:
+    base,
+    hadlink:hadlink-common,
+    text,
     warp
 
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
@@ -86,10 +127,11 @@ test-suite hadlink-test
   type: exitcode-stdio-1.0
   main-is: Properties.hs
   hs-source-dirs: test
-  
+
   build-depends:
     base,
-    hadlink,
+    hadlink:hadlink-shorten-lib,
+    hadlink:hadlink-common,
     QuickCheck >= 2.14,
     hedgehog >= 1.0,
     tasty >= 1.4,
@@ -97,5 +139,5 @@ test-suite hadlink-test
     tasty-hedgehog >= 1.1,
     text,
     bytestring
-  
+
   ghc-options: -threaded -rtsopts -with-rtsopts=-N

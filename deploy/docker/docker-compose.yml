@@ -4,7 +4,7 @@ services:
   # Fast, read-only redirect service (public-facing)
   redirect:
     image: hadlink:latest
-    command: redirect
+    command: ["/usr/local/bin/hadlink-redirect"]
     ports:
       - "${REDIRECT_PORT:-8080}:8080"
     volumes:
@@ -40,7 +40,7 @@ services:
   shorten:
     image: hadlink:latest
     entrypoint: ["/bin/sh", "-c"]
-    command: ["export HADLINK_SECRET=$(cat /run/secrets/secret) && exec /usr/local/bin/hadlink shorten"]
+    command: ["export HADLINK_SECRET=$(cat /run/secrets/secret) && exec /usr/local/bin/hadlink-shorten"]
     ports:
       - "127.0.0.1:${SHORTEN_PORT:-8443}:8443"
     volumes:

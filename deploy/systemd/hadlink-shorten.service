@@ -5,7 +5,7 @@ Documentation=https://github.com/jbsco/hadlink
 
 [Service]
 Type=simple
-ExecStart=/usr/local/bin/hadlink shorten
+ExecStart=/usr/local/bin/hadlink-shorten
 User=hadlink
 Group=hadlink
 
