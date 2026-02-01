@@ -92,4 +92,5 @@ data Config = Config
   , cfgStoragePath         :: FilePath    -- Path to storage backend
   , cfgAPIKeys             :: [APIKey]    -- Authorized API keys
   , cfgTrustProxy          :: Bool        -- Trust X-Forwarded-For header (only enable behind trusted proxy)
+  , cfgBaseURL             :: Text        -- Base URL for short link responses (e.g. "https://s.example.com")
   } deriving (Show, Eq, Generic)
