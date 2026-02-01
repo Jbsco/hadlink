@@ -79,8 +79,8 @@ curl -X POST http://127.0.0.1:8443/api/create \
 ## Manual Systemd Setup
 
 ```bash
-# Install binary and library
-sudo cp hadlink /usr/local/bin/
+# Install binaries and library
+sudo cp hadlink-shorten hadlink-redirect /usr/local/bin/
 sudo cp libHadlink_Core.so /usr/local/lib/
 sudo ldconfig
 

@@ -282,8 +282,8 @@ hadlink runs as two separate daemons:
 
 | Daemon | Port | Access | Operations |
 |--------|------|--------|------------|
-| `hadlink shorten` | 8443 | Private (LAN/VPN) | POST /api/create |
-| `hadlink redirect` | 8080 | Public | GET/HEAD /{code} |
+| `hadlink-shorten` | 8443 | Private (LAN/VPN) | POST /api/create, GET /health |
+| `hadlink-redirect` | 8080 | Public | GET/HEAD /{code}, GET /health |
 
 The redirect daemon has read-only database access and minimal privileges. Only the shorten daemon can create new links.
 

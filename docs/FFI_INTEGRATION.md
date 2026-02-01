@@ -167,7 +167,7 @@ Run SPARK core as a separate process:
 - `haskell/src/Canonicalize.hs` - Changed to IO-based, calls sparkCanonicalize
 - `haskell/src/ShortCode.hs` - Changed to IO-based, calls sparkMakeShortCode
 - `haskell/src/API.hs` - Updated for IO-based functions
-- `haskell/app/Main.hs` - Calls initSpark on startup
+- `haskell/app/ShortenMain.hs` - Calls initSpark on startup
 - `haskell/hadlink.cabal` - Added SparkFFI module, extra-libraries, extra-lib-dirs
 - `all.do` - Build SPARK before Haskell
 - `spark-core/build.do` - New build script for SPARK
