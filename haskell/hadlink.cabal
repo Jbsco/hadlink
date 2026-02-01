@@ -5,7 +5,7 @@ synopsis:      High-assurance URL shortener with SPARK proofs
 description:   Embedded-style URL shortener with formally verified core
 license:       AGPL-3.0-or-later
 author:        hadlink contributors
-maintainer:    hadlink@example.com
+maintainer:
 category:      Web
 build-type:    Simple
 

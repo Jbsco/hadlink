@@ -19,7 +19,7 @@
 
 ---
 
-**hadlink** is a self-hosted, high-assurance URL shortener designed for:
+**hadlink** is a high-assurance identifier and redirect service with formally verified core logic, designed for:
 
 - Automated systems (CI/CD, monitoring)
 - Constrained channels (SMS, QR codes, logs)
@@ -155,17 +155,23 @@ See [ROADMAP.md](docs/ROADMAP.md) for details.
 
 ## Quick Start
 
-### Prerequisites
+### Docker (recommended)
 
-**Docker** (recommended for deployment)
+No build toolchain required — downloads pre-built binaries from GitHub Releases:
 
-- **[Docker Desktop](https://docs.docker.com/desktop/)** (Apache-2.0)
-  ```bash
-  ./deploy/deploy.sh docker start --generate-secret
-  ```
-  All build dependencies (redo, Stack, Alire) are containerized. Skip to [Deployment](#deployment).
+```bash
+./deploy/deploy.sh docker start --from-release --generate-secret
+```
 
-**Native build** (for development)
+To build from source instead (containerized, requires [Docker Desktop](https://docs.docker.com/desktop/)):
+
+```bash
+./deploy/deploy.sh docker start --generate-secret
+```
+
+For systemd, additional options, and manual setup, see [DEPLOYMENT.md](docs/DEPLOYMENT.md).
+
+### Native build (for development)
 
 1. **[dinkelk/redo](https://github.com/dinkelk/redo)** - Build system (MIT), chosen for correct dependency tracking, minimal complexity, and a Haskell implementation that aligns with the project's toolchain.
    ```bash
@@ -251,11 +257,20 @@ curl -I http://localhost:8080/Bmx9c8bI
 ## Deployment
 
 ```bash
-# Docker deployment with default settings
+# Docker with release binaries (no build required)
+./deploy/deploy.sh docker start --from-release --generate-secret
+
+# Docker from source (builds in container)
 ./deploy/deploy.sh docker start --generate-secret
 
-# Docker with proof-of-work enabled
-./deploy/deploy.sh docker start --generate-secret --pow-difficulty 8 --pow-difficulty-auth 2
+# With proof-of-work enabled
+./deploy/deploy.sh docker start --from-release --generate-secret --pow-difficulty 8 --pow-difficulty-auth 2
+
+# Systemd with release binaries
+sudo ./deploy/deploy.sh systemd start --from-release --generate-secret
+
+# Pin a specific release version
+sudo ./deploy/deploy.sh systemd start --from-release v1.0.0 --generate-secret
 
 # Stop/remove
 ./deploy/deploy.sh docker stop
@@ -263,20 +278,7 @@ curl -I http://localhost:8080/Bmx9c8bI
 ./deploy/deploy.sh docker remove --remove-data  # Removes everything
 ```
 
-### Install from Release (no build required)
-
-```bash
-# Docker
-./deploy/deploy.sh docker start --from-release --generate-secret
-
-# Systemd
-sudo ./deploy/deploy.sh systemd start --from-release --generate-secret
-
-# Pin a specific version
-sudo ./deploy/deploy.sh systemd start --from-release v1.0.0 --generate-secret
-```
-
-For systemd deployment, manual setup, or additional options, see [DEPLOYMENT.md](docs/DEPLOYMENT.md).
+For manual setup, systemd details, viewing logs, and all options, see [DEPLOYMENT.md](docs/DEPLOYMENT.md).
 
 ---
 
