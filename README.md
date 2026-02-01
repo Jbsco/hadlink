@@ -136,13 +136,18 @@ The redirect path is optimized for speed (Warp + SQLite lookup). Create operatio
 ## Status
 
 **Version**: 1.0.0
-**Phase**: Phase 3 (Hardening) in progress
+**Phase**: Phase 3 (Hardening) complete
 
 - SPARK core 100% verified (137 proof checks)
 - 24 property tests via Hedgehog (canonicalization, short codes, negative cases, rate limiting, proof-of-work)
 - Security self-audit complete (all P0/P1 items addressed)
 - Rate limiting integrated and tested (token bucket per IP)
-- FFI boundary stable
+- FFI boundary frozen (API version 1, freeze test enforced)
+- Separate redirect/shorten binaries (redirect has no SPARK dependency)
+- Health check endpoints on both services (`GET /health`)
+- Structured JSON logging via fast-logger
+- GitHub release workflow with pre-built binaries
+- `--from-release` deployment (no build toolchain required)
 
 See [ROADMAP.md](docs/ROADMAP.md) for details.
 

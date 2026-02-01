@@ -166,7 +166,7 @@ Deferred to post-v1.0.0:
 - Production deployment guides
 - Security documentation
 
-**Status**: In Progress
+**Status**: Complete
 
 ---
 
@@ -212,8 +212,8 @@ The following will **not** be added to maintain scope:
 ## Current Status
 
 **Current Version**: v1.0.0
-**Current Phase**: Phase 3 (Hardening) in progress
-**Last Updated**: 2026-01-27
+**Current Phase**: Phase 3 (Hardening) complete
+**Last Updated**: 2026-02-01
 
 **Achievements**:
 - FFI integration complete: Haskell calls SPARK core for URL validation and short code generation
@@ -228,6 +228,11 @@ The following will **not** be added to maintain scope:
   - X-Forwarded-For header trust configurable (disabled by default)
   - SSRF protection extended to IPv6 (loopback, link-local, ULA, mapped IPv4)
   - Deploy script hardened against .env injection
+- Separate redirect/shorten binaries: hadlink-redirect has no SPARK/FFI dependency
+- Health check endpoints: `GET /health` on both services (database connectivity check)
+- Structured JSON logging: via fast-logger to stdout, compatible with Docker and systemd journal
+- GitHub release workflow: Pre-built binary tarball attached to tagged releases
+- `--from-release` deployment: Install from GitHub releases without build toolchain
 
 ---
 
