@@ -1,0 +1,96 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Cache Alire
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.config/alire
+            ~/.cache/alire
+            spark-core/alire
+          key: alire-${{ runner.os }}-${{ hashFiles('spark-core/alire.toml') }}
+          restore-keys: alire-${{ runner.os }}-
+
+      - name: Cache Stack
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.stack
+            haskell/.stack-work
+          key: stack-${{ runner.os }}-${{ hashFiles('haskell/stack.yaml', 'haskell/hadlink.cabal') }}
+          restore-keys: stack-${{ runner.os }}-
+
+      - name: Cache redo
+        uses: actions/cache@v4
+        with:
+          path: ~/redo
+          key: redo-${{ runner.os }}-v1
+
+      - name: Install Alire
+        uses: alire-project/setup-alire@v3
+
+      - name: Install GNAT toolchain
+        run: |
+          cd spark-core
+          alr toolchain --select gnat_native
+          alr build --stop-after=generation || true
+
+      - name: Install Stack
+        uses: haskell-actions/setup@v2
+        with:
+          enable-stack: true
+          stack-version: 'latest'
+
+      - name: Install redo
+        run: |
+          if [ ! -d ~/redo ]; then
+            git clone https://github.com/dinkelk/redo.git ~/redo
+            cd ~/redo && ./do
+          fi
+          echo "$HOME/redo/bin" >> $GITHUB_PATH
+
+      - name: Clean build
+        run: redo clean
+
+      - name: Build all
+        run: redo all
+
+      - name: Run tests
+        run: redo test
+
+      - name: Package release tarball
+        run: |
+          mkdir -p release
+          for bin in hadlink-shorten hadlink-redirect; do
+            cp haskell/.stack-work/install/*/bin/$bin release/ 2>/dev/null || \
+              find haskell/.stack-work -name $bin -type f -executable -exec cp {} release/ \;
+          done
+          cp spark-core/lib/libHadlink_Core.so release/
+          echo "Build: $(date -u +%Y-%m-%dT%H:%M:%SZ)" > release/BUILD_INFO
+          echo "Commit: ${{ github.sha }}" >> release/BUILD_INFO
+          echo "Tag: ${{ github.ref_name }}" >> release/BUILD_INFO
+          tar -czf hadlink-linux-x64.tar.gz -C release .
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ github.ref_name }}" \
+            hadlink-linux-x64.tar.gz \
+            --title "hadlink ${{ github.ref_name }}" \
+            --generate-notes
