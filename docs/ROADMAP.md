@@ -105,13 +105,13 @@ Follow the migration plan: Haskell-only → SPARK extraction → frozen API.
 **Goal**: Production-ready, frozen API.
 
 ### Milestone 3.1: Freeze SPARK API
-- [ ] Lock SPARK interface
+- [x] Lock SPARK interface
 - [x] Full proof coverage (137 checks, 100% verified)
 - [x] Comprehensive documentation
 - [x] Security audit of boundary (P0/P1 items addressed)
 
 ### Milestone 3.2: Deployment Hardening
-- [ ] Separate redirect/shorten binaries
+- [x] Separate redirect/shorten binaries
 - [x] Read-only redirect daemon
 - [x] Systemd hardening
 - [x] Docker security options
@@ -119,7 +119,7 @@ Follow the migration plan: Haskell-only → SPARK extraction → frozen API.
 - [x] X-Forwarded-For protection (configurable, disabled by default)
 - [x] Comprehensive SSRF protection (IPv4 + IPv6)
 - [x] Safe deploy script (.env injection prevention)
-- [ ] Monitoring and logging
+- [x] Monitoring and logging
 
 ### Milestone 3.3: Documentation
 - [x] API specification
@@ -139,26 +139,26 @@ The SPARK core API surface (`Canonicalize`, `Make_Short_Code`, and their FFI wra
 
 ### Separate Redirect/Shorten Binaries
 
-Currently a single `hadlink` binary selects its mode via a CLI argument (`shorten` or `redirect`). Splitting into two binaries reduces attack surface and simplifies deployment.
+Two separate binaries (`hadlink-shorten`, `hadlink-redirect`) via Cabal internal libraries:
 
-Approaches:
+- **`hadlink-common`**: Types, Store, API.Resolve, Logging, Health (no SPARK dependency)
+- **`hadlink-shorten-lib`**: Canonicalize, ShortCode, SparkFFI, RateLimit, ProofOfWork, API.Shorten, API
+- **`hadlink-redirect`**: Links only `hadlink-common` — no SPARK, no FFI, no rate limiting
+- **`hadlink-shorten`**: Links both libraries, includes full creation pipeline
 
-- **Cabal internal libraries**: Factor shared code (Types, Store, SparkFFI) into an internal library. Define two executables in `hadlink.cabal`, each with its own `Main.hs` that imports only the modules it needs. The redirect binary would not link rate limiting, proof-of-work, or canonicalization modules.
-- **Conditional compilation**: Use CPP or Cabal flags to exclude unused modules per binary. Simpler but less clean than internal libraries.
-- **Shared library approach**: Build the shared modules as a Cabal library, then two thin executables. This is the standard Cabal pattern and allows downstream consumers.
-
-The redirect binary should be minimal: Warp, Store (read-only), and the resolve handler. It should not link SparkFFI, RateLimit, or ProofOfWork.
+The redirect binary does not link `libHadlink_Core.so`, reducing attack surface and deployment complexity for the public-facing service.
 
 ### Monitoring and Logging
 
-The service currently has minimal logging (startup configuration echo). Production deployments need structured observability.
+Implemented:
 
-Areas to address:
+- **Structured logging**: JSON log lines via `fast-logger` to stdout (timestamps, level, method, path, status). Compatible with Docker and systemd journal.
+- **Health check**: `GET /health` endpoint on both daemons returns `{"status":"ok"}` (200) or `{"status":"error","detail":"..."}` (503) based on database connectivity.
 
-- **Structured logging**: Use `fast-logger` or `co-log` to emit JSON log lines with timestamps, request IDs, client IPs, and outcomes (created, resolved, rejected, rate-limited). Log to stdout for compatibility with Docker and systemd journal.
-- **Metrics endpoint**: Add an optional `/metrics` endpoint (Prometheus format) exposing counters for requests by type, status codes, rate limit hits, and PoW rejections. Libraries like `prometheus-client` integrate with WAI middleware.
-- **Health check**: Add a `GET /health` endpoint that returns 200 if the service is operational and the database is reachable. Docker and systemd health checks can poll this instead of relying on port availability.
-- **Audit trail**: Optionally log link creation events (short code, timestamp, client IP) to a separate append-only log or database table. This is distinct from application logging and supports operational auditing.
+Deferred to post-v1.0.0:
+
+- Metrics endpoint (Prometheus)
+- Audit trail (append-only creation log)
 
 ### Deliverables
 - v1.0.0 release
@@ -166,7 +166,7 @@ Areas to address:
 - Production deployment guides
 - Security documentation
 
-**Status**: In Progress
+**Status**: Complete
 
 ---
 
@@ -212,8 +212,8 @@ The following will **not** be added to maintain scope:
 ## Current Status
 
 **Current Version**: v1.0.0
-**Current Phase**: Phase 3 (Hardening) in progress
-**Last Updated**: 2026-01-27
+**Current Phase**: Phase 3 (Hardening) complete
+**Last Updated**: 2026-02-01
 
 **Achievements**:
 - FFI integration complete: Haskell calls SPARK core for URL validation and short code generation
@@ -228,6 +228,11 @@ The following will **not** be added to maintain scope:
   - X-Forwarded-For header trust configurable (disabled by default)
   - SSRF protection extended to IPv6 (loopback, link-local, ULA, mapped IPv4)
   - Deploy script hardened against .env injection
+- Separate redirect/shorten binaries: hadlink-redirect has no SPARK/FFI dependency
+- Health check endpoints: `GET /health` on both services (database connectivity check)
+- Structured JSON logging: via fast-logger to stdout, compatible with Docker and systemd journal
+- GitHub release workflow: Pre-built binary tarball attached to tagged releases
+- `--from-release` deployment: Install from GitHub releases without build toolchain
 
 ---
 

@@ -370,6 +370,7 @@ testConfig limit window = Config
   , cfgStoragePath = ":memory:"
   , cfgAPIKeys = []
   , cfgTrustProxy = False
+  , cfgBaseURL = "http://localhost:8443"
   }
 
 -- | Requests within the rate limit should be allowed
@@ -521,6 +522,7 @@ testPowConfig anonDiff authDiff keys = Config
   , cfgStoragePath = ":memory:"
   , cfgAPIKeys = map APIKey keys
   , cfgTrustProxy = False
+  , cfgBaseURL = "http://localhost:8443"
   }
 
 -- | Anonymous requests (no API key) should use cfgPowDifficulty

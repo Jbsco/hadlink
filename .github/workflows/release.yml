@@ -1,27 +1,20 @@
-name: Build
+name: Release
 
 on:
   push:
-    branches: [main]
-  pull_request:
-    branches: [main]
-  workflow_dispatch:
+    tags:
+      - 'v*'
 
 jobs:
-  build:
+  release:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
-
-      - name: Debug checked-out commit
-        run: |
-          echo "github.sha = ${{ github.sha }}"
-          git rev-parse HEAD
-          git log -1 --oneline
 
       - name: Cache Alire
         uses: actions/cache@v4
@@ -72,46 +65,32 @@ jobs:
           echo "$HOME/redo/bin" >> $GITHUB_PATH
 
       - name: Clean build
-        run: |
-          set -o pipefail
-          redo -x -v clean 2>&1 | tee clean-output.log
+        run: redo clean
 
       - name: Build all
-        id: build
-        run: |
-          set -o pipefail
-          redo -x -v all 2>&1 | tee build-output.log
+        run: redo all
 
-      - name: Upload build log
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: build-log
-          path: |
-            clean-output.log
-            build-output.log
-          retention-days: 30
+      - name: Run tests
+        run: redo test
 
-      - name: Prepare binary artifact
-        if: success()
+      - name: Package release tarball
         run: |
-          mkdir -p dist
-          # Copy Haskell executables
+          mkdir -p release
           for bin in hadlink-shorten hadlink-redirect; do
-            cp haskell/.stack-work/install/*/bin/$bin dist/ 2>/dev/null || \
-              find haskell/.stack-work -name $bin -type f -executable -exec cp {} dist/ \;
+            cp haskell/.stack-work/install/*/bin/$bin release/ 2>/dev/null || \
+              find haskell/.stack-work -name $bin -type f -executable -exec cp {} release/ \;
           done
-          # Copy SPARK shared library
-          cp spark-core/lib/libHadlink_Core.so dist/
-          # Create version info
-          echo "Build: $(date -u +%Y-%m-%dT%H:%M:%SZ)" > dist/BUILD_INFO
-          echo "Commit: ${{ github.sha }}" >> dist/BUILD_INFO
-          echo "Ref: ${{ github.ref }}" >> dist/BUILD_INFO
+          cp spark-core/lib/libHadlink_Core.so release/
+          echo "Build: $(date -u +%Y-%m-%dT%H:%M:%SZ)" > release/BUILD_INFO
+          echo "Commit: ${{ github.sha }}" >> release/BUILD_INFO
+          echo "Tag: ${{ github.ref_name }}" >> release/BUILD_INFO
+          tar -czf hadlink-linux-x64.tar.gz -C release .
 
-      - name: Upload binary artifact
-        uses: actions/upload-artifact@v4
-        if: success()
-        with:
-          name: hadlink-linux-x64
-          path: dist/
-          retention-days: 90
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ github.ref_name }}" \
+            hadlink-linux-x64.tar.gz \
+            --title "hadlink ${{ github.ref_name }}" \
+            --generate-notes

@@ -16,11 +16,18 @@
 
 {-# LANGUAGE OverloadedStrings #-}
 
-module API
-  ( app
+module API.Shorten
+  ( shortenApp
   , createHandler
-  , resolveHandler
+  , handleCreate
+  , createShortLink
+  , getEffectiveDifficulty
   , selectDifficulty
+  , errorResponse
+  , validationErrorMessage
+  , getClientIP
+  , sockAddrToBS
+  , word32ToBytes
   ) where
 
 import Types
@@ -29,6 +36,9 @@ import ShortCode (generateShortCode)
 import Store
 import RateLimit (RateLimiter, checkLimit)
 import ProofOfWork (verifyPoW)
+import API.Resolve (resolveHandler)
+import Logging (Logger, logRequest, logInfo, logWarn)
+import Health (healthHandler)
 import qualified Data.Text as T
 import qualified Data.Text.Encoding as TE
 import qualified Data.ByteString as BS
@@ -39,62 +49,79 @@ import Network.Socket (SockAddr(..))
 import Data.Aeson (object, (.=), encode)
 import Data.Word (Word8, Word32)
 
--- | WAI Application
-app :: Config -> SQLiteStore -> RateLimiter -> Application
-app config store limiter req respond =
+-- | WAI Application for the shorten service (includes resolve)
+shortenApp :: Config -> SQLiteStore -> RateLimiter -> Logger -> Application
+shortenApp config store limiter logger req respond =
   case (requestMethod req, pathInfo req) of
-    ("POST", ["api", "create"]) -> createHandler config store limiter req respond
-    ("GET", [code]) -> resolveHandler store code req respond
-    ("HEAD", [code]) -> resolveHandler store code req respond
-    _ -> respond $ responseLBS status404 [("Content-Type", "text/plain")] "Not found"
+    ("GET", ["health"]) -> healthHandler store req respond
+    ("POST", ["api", "create"]) ->
+      createHandler config store limiter logger req respond
+    ("GET", [code]) -> resolveHandler store logger code req respond
+    ("HEAD", [code]) -> resolveHandler store logger code req respond
+    _ -> do
+      logRequest logger req status404
+      respond $ responseLBS status404
+        [("Content-Type", "text/plain")] "Not found"
 
 -- | Handle short link creation
-createHandler :: Config -> SQLiteStore -> RateLimiter -> Application
-createHandler config store limiter req respond = do
-  -- Extract client IP and check rate limit
+createHandler :: Config -> SQLiteStore -> RateLimiter -> Logger -> Application
+createHandler config store limiter logger req respond = do
   let clientIP = getClientIP config req
   allowed <- checkLimit limiter clientIP
   if not allowed
-    then respond $ errorResponse status429 "Rate limit exceeded"
-    else handleCreate config store req respond
+    then do
+      logWarn logger "Rate limit exceeded" [("client_ip", T.pack $ show clientIP)]
+      logRequest logger req status429
+      respond $ errorResponse status429 "Rate limit exceeded"
+    else handleCreate config store logger req respond
 
 -- | Actual create logic (after rate limit check)
-handleCreate :: Config -> SQLiteStore -> Application
-handleCreate config store req respond = do
-  -- Parse request body
+handleCreate :: Config -> SQLiteStore -> Logger -> Application
+handleCreate config store logger req respond = do
   body <- strictRequestBody req
   let params = parseQuery (BL.toStrict body)
 
   case lookup "url" params of
-    Nothing -> respond $ errorResponse status400 "Missing 'url' parameter"
-    Just Nothing -> respond $ errorResponse status400 "Empty 'url' parameter"
+    Nothing -> do
+      logRequest logger req status400
+      respond $ errorResponse status400 "Missing 'url' parameter"
+    Just Nothing -> do
+      logRequest logger req status400
+      respond $ errorResponse status400 "Empty 'url' parameter"
     Just (Just urlBytes) -> do
       let rawUrl = RawURL (TE.decodeUtf8 urlBytes)
 
-      -- Canonicalize URL (IO operation via SPARK FFI)
       canonResult <- canonicalize rawUrl
       case canonResult of
-        Left err -> respond $ errorResponse status400 (validationErrorMessage err)
+        Left err -> do
+          logRequest logger req status400
+          respond $ errorResponse status400
+            (validationErrorMessage err)
         Right validUrl -> do
-          -- Determine PoW difficulty based on authentication status
           let effectiveDifficulty = getEffectiveDifficulty config req
           if effectiveDifficulty == 0
             then
-              -- PoW disabled for this request
-              createShortLink config store validUrl respond
+              createShortLink config store logger req validUrl respond
             else
-              -- PoW required - verify nonce
               case lookup "nonce" params of
-                Nothing -> respond $ errorResponse status400 "Missing 'nonce' parameter (proof-of-work required)"
-                Just Nothing -> respond $ errorResponse status400 "Empty 'nonce' parameter"
+                Nothing -> do
+                  logRequest logger req status400
+                  respond $ errorResponse status400
+                    "Missing 'nonce' parameter (proof-of-work required)"
+                Just Nothing -> do
+                  logRequest logger req status400
+                  respond $ errorResponse status400
+                    "Empty 'nonce' parameter"
                 Just (Just nonceBytes) -> do
                   let nonce = Nonce nonceBytes
                   if verifyPoW (Difficulty effectiveDifficulty) validUrl nonce
-                    then createShortLink config store validUrl respond
-                    else respond $ errorResponse status400 "Proof-of-work verification failed"
+                    then createShortLink config store logger req validUrl respond
+                    else do
+                      logRequest logger req status400
+                      respond $ errorResponse status400
+                        "Proof-of-work verification failed"
 
 -- | Get effective PoW difficulty for this request
--- Authenticated requests use cfgPowDifficultyAuth, anonymous use cfgPowDifficulty
 getEffectiveDifficulty :: Config -> Request -> Int
 getEffectiveDifficulty config req =
   let apiKeyHeader = lookup "X-API-Key" (requestHeaders req)
@@ -102,7 +129,6 @@ getEffectiveDifficulty config req =
   in selectDifficulty config maybeKey
 
 -- | Pure function to select difficulty based on API key
--- Exported for testing without wai dependency
 selectDifficulty :: Config -> Maybe APIKey -> Int
 selectDifficulty config maybeKey =
   let Difficulty anonDiff = cfgPowDifficulty config
@@ -112,43 +138,26 @@ selectDifficulty config maybeKey =
         Just key -> key `elem` cfgAPIKeys config
   in if hasValidKey then authDiff else anonDiff
 
--- | Create short link and respond (shared by PoW and non-PoW paths)
-createShortLink :: Config -> SQLiteStore -> ValidURL -> (Response -> IO ResponseReceived) -> IO ResponseReceived
-createShortLink config store validUrl respond = do
-  -- Generate short code (IO operation via SPARK FFI)
+-- | Create short link and respond
+createShortLink :: Config -> SQLiteStore -> Logger -> Request -> ValidURL -> (Response -> IO ResponseReceived) -> IO ResponseReceived
+createShortLink config store logger req validUrl respond = do
   shortCode <- generateShortCode (cfgSecret config) validUrl
-
-  -- Store mapping (idempotent)
   put shortCode validUrl store
 
-  -- Return response
   let ShortCode code = shortCode
+      baseURL = cfgBaseURL config
+      -- Strip trailing slash if present to avoid double-slash
+      base = if T.null baseURL then "" else
+             if T.last baseURL == '/' then T.init baseURL else baseURL
       response = object
-        [ "short" .= ("http://localhost:8080/" <> code)
+        [ "short" .= (base <> "/" <> code)
         , "code" .= code
         ]
+  logInfo logger "Link created" [("code", code)]
+  logRequest logger req status200
   respond $ responseLBS status200
     [("Content-Type", "application/json")]
     (encode response)
-
--- | Handle redirect resolution
-resolveHandler :: SQLiteStore -> T.Text -> Application
-resolveHandler store code _req respond = do
-  -- Validate code format (8 base62 characters)
-  if T.length code /= 8
-    then respond $ errorResponse status404 "Not found"
-    else do
-      -- Lookup in store
-      maybeUrl <- get (ShortCode code) store
-      case maybeUrl of
-        Nothing -> respond $ errorResponse status404 "Not found"
-        Just (ValidURL url) ->
-          -- Return 302 redirect
-          respond $ responseLBS status302
-            [ ("Location", TE.encodeUtf8 url)
-            , ("Cache-Control", "public, max-age=3600")
-            ]
-            ""
 
 -- | Helper to create error responses
 errorResponse :: Status -> T.Text -> Response
@@ -160,54 +169,49 @@ errorResponse status msg =
 -- | Convert validation error to message
 validationErrorMessage :: ValidationError -> T.Text
 validationErrorMessage InvalidLength = "URL length invalid"
-validationErrorMessage InvalidScheme = "Only http:// and https:// schemes allowed"
+validationErrorMessage InvalidScheme =
+  "Only http:// and https:// schemes allowed"
 validationErrorMessage InvalidHost = "Invalid host"
-validationErrorMessage PrivateAddress = "Private/local addresses not allowed"
-validationErrorMessage CredentialsPresent = "URLs with credentials not allowed"
-validationErrorMessage InvalidCharacters = "Invalid characters in URL"
+validationErrorMessage PrivateAddress =
+  "Private/local addresses not allowed"
+validationErrorMessage CredentialsPresent =
+  "URLs with credentials not allowed"
+validationErrorMessage InvalidCharacters =
+  "Invalid characters in URL"
 validationErrorMessage (ParseError msg) = "Parse error: " <> msg
 
 -- | Extract client IP from request
--- Only checks X-Forwarded-For when cfgTrustProxy is True (behind trusted reverse proxy)
--- When disabled, always uses the direct socket address to prevent header spoofing attacks
 getClientIP :: Config -> Request -> ClientIP
 getClientIP config req
   | cfgTrustProxy config =
-      -- Trust proxy mode: use X-Forwarded-For if present
       case lookup "X-Forwarded-For" (requestHeaders req) of
         Just xff ->
-          -- X-Forwarded-For may contain multiple IPs; take the first (original client)
-          -- Validate it looks like an IP address (basic check for alphanumeric, dots, colons)
-          let firstIP = BS.takeWhile (/= 44) xff  -- 44 = comma
-              isValidIPChar c = (c >= 48 && c <= 57)   -- 0-9
-                             || (c >= 65 && c <= 70)   -- A-F (for IPv6)
-                             || (c >= 97 && c <= 102)  -- a-f (for IPv6)
-                             || c == 46                -- .
-                             || c == 58                -- : (for IPv6)
+          let firstIP = BS.takeWhile (/= 44) xff
+              isValidIPChar c = (c >= 48 && c <= 57)
+                             || (c >= 65 && c <= 70)
+                             || (c >= 97 && c <= 102)
+                             || c == 46
+                             || c == 58
           in if BS.all isValidIPChar firstIP && not (BS.null firstIP)
              then ClientIP firstIP
-             else ClientIP $ sockAddrToBS (remoteHost req)  -- Invalid format, use socket
+             else ClientIP $ sockAddrToBS (remoteHost req)
         Nothing ->
           ClientIP $ sockAddrToBS (remoteHost req)
   | otherwise =
-      -- Direct mode: always use socket address (prevents header spoofing)
       ClientIP $ sockAddrToBS (remoteHost req)
 
--- | Convert socket address to ByteString for use as client identifier
+-- | Convert socket address to ByteString
 sockAddrToBS :: SockAddr -> BS.ByteString
 sockAddrToBS (SockAddrInet _port host) =
-  -- IPv4: convert host address to string representation
   let a = fromIntegral (host `mod` 256)
       b = fromIntegral ((host `div` 256) `mod` 256)
       c = fromIntegral ((host `div` 65536) `mod` 256)
       d = fromIntegral (host `div` 16777216)
-  in BS.pack [a, 46, b, 46, c, 46, d]  -- "a.b.c.d" as bytes
+  in BS.pack [a, 46, b, 46, c, 46, d]
 sockAddrToBS (SockAddrInet6 _port _flow host _scope) =
-  -- IPv6: use raw bytes as identifier
   let (a, b, c, d) = host
   in BS.pack $ concatMap word32ToBytes [a, b, c, d]
 sockAddrToBS (SockAddrUnix path) =
-  -- Unix socket: use path as identifier
   TE.encodeUtf8 (T.pack path)
 
 -- | Convert Word32 to list of bytes
@@ -218,4 +222,3 @@ word32ToBytes w =
   , fromIntegral ((w `div` 65536) `mod` 256)
   , fromIntegral (w `div` 16777216)
   ]
-

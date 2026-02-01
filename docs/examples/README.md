@@ -80,30 +80,18 @@ build:
 
 ### Example Configuration File
 
-See [`config.example.yaml`](config.example.yaml) for a complete configuration template.
-
-Copy and customize:
-```bash
-cp docs/examples/config.example.yaml config.yaml
-# Edit config.yaml with your settings
-```
+See [`config.example.env`](config.example.env) for all available environment variables.
 
 ### Minimal Configuration
 
-```yaml
-secret: "YOUR_SECRET_HERE"  # Required - generate with: openssl rand -hex 16
-pow_difficulty: 0
-rate_limit:
-  per_ip: 10
-  window: 60
-storage:
-  type: sqlite
-  path: /var/lib/hadlink/hadlink.db
-server:
-  mode: shorten
-  port: 8443
-  bind: "127.0.0.1"
-  trust_proxy: false  # Set true only behind trusted reverse proxy
+```bash
+# Required — generate with: openssl rand -hex 16
+export HADLINK_SECRET=<your-secret>
+
+# Optional
+export HADLINK_PORT=8443
+export HADLINK_STORAGE=/var/lib/hadlink/hadlink.db
+export HADLINK_BASE_URL=https://s.example.com
 ```
 
 ### Behind a Reverse Proxy

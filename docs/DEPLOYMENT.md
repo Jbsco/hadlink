@@ -52,6 +52,29 @@ sudo ./deploy/deploy.sh systemd uninstall --remove-data  # Removes everything
 
 ---
 
+## Install from Release
+
+Deploy hadlink without building from source. The `--from-release` flag downloads pre-built binaries from GitHub Releases.
+
+```bash
+# Docker — downloads latest release, builds a slim runtime image
+./deploy/deploy.sh docker start --from-release --generate-secret
+
+# Systemd — downloads latest release, installs binaries to /usr/local
+sudo ./deploy/deploy.sh systemd start --from-release --generate-secret
+
+# Pin a specific version
+sudo ./deploy/deploy.sh systemd start --from-release v1.0.0 --generate-secret
+```
+
+**What it downloads:** A tarball (`hadlink-linux-x64.tar.gz`) from the GitHub release containing `hadlink-shorten`, `hadlink-redirect`, `libHadlink_Core.so`, and `BUILD_INFO`.
+
+**Requirements:** `curl` and `tar` (no `gh` CLI, Alire, Stack, or redo needed).
+
+For Docker, binaries are copied into a minimal `debian:bookworm-slim` runtime image (`Dockerfile.runtime`). For systemd, binaries are installed directly to `$INSTALL_DIR/bin/` and `$INSTALL_DIR/lib/`.
+
+---
+
 ## Manual Docker Setup
 
 ```bash
@@ -79,8 +102,8 @@ curl -X POST http://127.0.0.1:8443/api/create \
 ## Manual Systemd Setup
 
 ```bash
-# Install binary and library
-sudo cp hadlink /usr/local/bin/
+# Install binaries and library
+sudo cp hadlink-shorten hadlink-redirect /usr/local/bin/
 sudo cp libHadlink_Core.so /usr/local/lib/
 sudo ldconfig
 
@@ -168,6 +191,27 @@ exit
 ```
 
 **Note:** The bind mount gives the container write access to your source code. This is appropriate for development but should not be used in production.
+
+---
+
+## Viewing Logs
+
+Both services emit structured JSON to stdout (one object per line):
+
+```json
+{"ts":"2026-01-15 08:30:12","level":"info","msg":"Link created","code":"Bmx9c8bI"}
+```
+
+```bash
+# Docker
+docker compose logs -f              # all services
+docker logs hadlink-redirect-1      # single service
+docker logs hadlink-shorten-1 | jq  # pretty-print JSON
+
+# Systemd
+journalctl -u hadlink-redirect -f
+journalctl -u hadlink-shorten -f --output cat | jq
+```
 
 ---
 

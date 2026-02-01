@@ -77,4 +77,12 @@ package Core_FFI is
      Convention    => C,
      External_Name => "hadlink_make_short_code";
 
+   --  Query API version
+   --  Returns the frozen API version constant
+   function Hadlink_API_Version return unsigned
+   with
+     Export        => True,
+     Convention    => C,
+     External_Name => "hadlink_api_version";
+
 end Core_FFI;

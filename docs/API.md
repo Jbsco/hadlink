@@ -84,7 +84,7 @@ Create a short link from a URL.
 | Field | Type | Description |
 |-------|------|-------------|
 | `code` | string | 8-character Base62 short code |
-| `short` | string | Full short URL including base |
+| `short` | string | Full short URL (uses `HADLINK_BASE_URL`, default: `http://localhost:$HADLINK_PORT`) |
 
 **Errors:**
 
@@ -282,8 +282,8 @@ hadlink runs as two separate daemons:
 
 | Daemon | Port | Access | Operations |
 |--------|------|--------|------------|
-| `hadlink shorten` | 8443 | Private (LAN/VPN) | POST /api/create |
-| `hadlink redirect` | 8080 | Public | GET/HEAD /{code} |
+| `hadlink-shorten` | 8443 | Private (LAN/VPN) | POST /api/create, GET /health |
+| `hadlink-redirect` | 8080 | Public | GET/HEAD /{code}, GET /health |
 
 The redirect daemon has read-only database access and minimal privileges. Only the shorten daemon can create new links.
 

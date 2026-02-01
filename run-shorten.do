@@ -13,4 +13,4 @@ echo "Starting shorten daemon on port $HADLINK_PORT"
 echo "Press Ctrl+C to stop"
 echo ""
 
-exec stack --stack-yaml haskell/stack.yaml exec hadlink shorten
+exec stack --stack-yaml haskell/stack.yaml exec hadlink-shorten

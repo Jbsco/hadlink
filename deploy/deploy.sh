@@ -18,6 +18,8 @@ DATA_DIR=""
 INSTALL_DIR="/usr/local"
 REMOVE_DATA=false
 FORCE=false
+FROM_RELEASE=false
+RELEASE_VERSION=""
 
 # Get script directory
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -112,6 +114,7 @@ Options:
   --generate-secret         Generate a new secret key
   --data-dir <PATH>         Data directory (default: ./data for docker, /var/lib/hadlink for systemd)
   --install-dir <PATH>      Binary installation directory (systemd only, default: /usr/local)
+  --from-release [VERSION]  Install from GitHub release (default: latest, no build required)
   --remove-data             Also remove database/volumes (for remove/uninstall actions)
   --force                   Skip confirmation prompts
   -h, --help                Show this help message
@@ -129,6 +132,10 @@ Examples:
   sudo ./deploy.sh systemd update
   sudo ./deploy.sh systemd uninstall
   sudo ./deploy.sh systemd uninstall --remove-data  # Also removes database
+
+  # Install from release (no build required)
+  ./deploy.sh docker start --from-release --generate-secret
+  sudo ./deploy.sh systemd start --from-release v1.0.0 --generate-secret
 
 EOF
     exit 1
@@ -196,6 +203,46 @@ get_compose_cmd() {
     fi
 }
 
+download_release() {
+    local version="$RELEASE_VERSION"
+    local tmp_dir
+    tmp_dir=$(mktemp -d)
+
+    if [ -z "$version" ]; then
+        log_info "Resolving latest release version..." >&2
+        version=$(curl -s https://api.github.com/repos/Jbsco/hadlink/releases/latest | grep '"tag_name"' | sed -E 's/.*"tag_name": *"([^"]+)".*/\1/')
+        if [ -z "$version" ]; then
+            log_error "Failed to resolve latest release version"
+            rm -rf "$tmp_dir"
+            exit 1
+        fi
+        log_info "Latest release: $version" >&2
+    fi
+
+    local url="https://github.com/Jbsco/hadlink/releases/download/${version}/hadlink-linux-x64.tar.gz"
+    log_info "Downloading release from $url" >&2
+
+    if ! curl -fL -o "$tmp_dir/hadlink-linux-x64.tar.gz" "$url"; then
+        log_error "Failed to download release $version"
+        rm -rf "$tmp_dir"
+        exit 1
+    fi
+
+    tar -xzf "$tmp_dir/hadlink-linux-x64.tar.gz" -C "$tmp_dir"
+    rm -f "$tmp_dir/hadlink-linux-x64.tar.gz"
+
+    # Verify expected files exist
+    for f in hadlink-shorten hadlink-redirect libHadlink_Core.so; do
+        if [ ! -f "$tmp_dir/$f" ]; then
+            log_error "Release archive missing expected file: $f"
+            rm -rf "$tmp_dir"
+            exit 1
+        fi
+    done
+
+    echo "$tmp_dir"
+}
+
 # =============================================================================
 # Docker Functions
 # =============================================================================
@@ -246,8 +293,17 @@ docker_start() {
     COMPOSE_CMD=$(get_compose_cmd)
     log_info "Using compose command: $COMPOSE_CMD"
 
-    # Check if image exists, build if not
-    if ! docker image inspect hadlink:latest >/dev/null 2>&1; then
+    # Build or fetch the Docker image
+    if [ "$FROM_RELEASE" = true ]; then
+        log_info "Building runtime image from release binaries..."
+        RELEASE_DIR=$(download_release)
+        cp "$RELEASE_DIR/hadlink-shorten" "$DOCKER_DIR/"
+        cp "$RELEASE_DIR/hadlink-redirect" "$DOCKER_DIR/"
+        cp "$RELEASE_DIR/libHadlink_Core.so" "$DOCKER_DIR/"
+        docker build -t hadlink:latest -f Dockerfile.runtime "$DOCKER_DIR"
+        rm -f "$DOCKER_DIR/hadlink-shorten" "$DOCKER_DIR/hadlink-redirect" "$DOCKER_DIR/libHadlink_Core.so"
+        rm -rf "$RELEASE_DIR"
+    elif ! docker image inspect hadlink:latest >/dev/null 2>&1; then
         log_info "Building Docker image..."
         docker build -t hadlink:latest -f Dockerfile ../..
     else
@@ -425,22 +481,34 @@ systemd_start() {
         DATA_DIR="/var/lib/hadlink"
     fi
 
-    # Check for binaries
-    if [ ! -f "$INSTALL_DIR/bin/hadlink" ]; then
-        log_warn "hadlink binary not found at $INSTALL_DIR/bin/hadlink"
-        echo "Please install the binary first:"
-        echo "  sudo cp hadlink $INSTALL_DIR/bin/"
-        echo "  sudo cp libHadlink_Core.so $INSTALL_DIR/lib/"
-        echo "  sudo ldconfig"
-        exit 1
-    fi
+    # Install from release or check for existing binaries
+    if [ "$FROM_RELEASE" = true ]; then
+        log_info "Installing binaries from release..."
+        RELEASE_DIR=$(download_release)
+        mkdir -p "$INSTALL_DIR/bin" "$INSTALL_DIR/lib"
+        cp "$RELEASE_DIR/hadlink-shorten" "$RELEASE_DIR/hadlink-redirect" "$INSTALL_DIR/bin/"
+        cp "$RELEASE_DIR/libHadlink_Core.so" "$INSTALL_DIR/lib/"
+        chmod 755 "$INSTALL_DIR/bin/hadlink-shorten" "$INSTALL_DIR/bin/hadlink-redirect"
+        chmod 644 "$INSTALL_DIR/lib/libHadlink_Core.so"
+        ldconfig
+        rm -rf "$RELEASE_DIR"
+    else
+        if [ ! -f "$INSTALL_DIR/bin/hadlink-shorten" ] || [ ! -f "$INSTALL_DIR/bin/hadlink-redirect" ]; then
+            log_warn "hadlink binaries not found at $INSTALL_DIR/bin/"
+            echo "Please install the binaries first:"
+            echo "  sudo cp hadlink-shorten hadlink-redirect $INSTALL_DIR/bin/"
+            echo "  sudo cp libHadlink_Core.so $INSTALL_DIR/lib/"
+            echo "  sudo ldconfig"
+            exit 1
+        fi
 
-    if [ ! -f "$INSTALL_DIR/lib/libHadlink_Core.so" ]; then
-        log_warn "libHadlink_Core.so not found at $INSTALL_DIR/lib/libHadlink_Core.so"
-        echo "Please install the library first:"
-        echo "  sudo cp libHadlink_Core.so $INSTALL_DIR/lib/"
-        echo "  sudo ldconfig"
-        exit 1
+        if [ ! -f "$INSTALL_DIR/lib/libHadlink_Core.so" ]; then
+            log_warn "libHadlink_Core.so not found at $INSTALL_DIR/lib/libHadlink_Core.so"
+            echo "Please install the library first:"
+            echo "  sudo cp libHadlink_Core.so $INSTALL_DIR/lib/"
+            echo "  sudo ldconfig"
+            exit 1
+        fi
     fi
 
     # Create hadlink user if it doesn't exist
@@ -513,14 +581,14 @@ EOF
     # Redirect service
     sed -e "s|Environment=HADLINK_PORT=8080|Environment=HADLINK_PORT=${REDIRECT_PORT}|g" \
         -e "s|Environment=HADLINK_STORAGE=.*|Environment=HADLINK_STORAGE=${DATA_DIR}/hadlink.db|g" \
-        -e "s|ExecStart=.*|ExecStart=${INSTALL_DIR}/bin/hadlink redirect|g" \
+        -e "s|ExecStart=.*|ExecStart=${INSTALL_DIR}/bin/hadlink-redirect|g" \
         -e "s|ReadOnlyPaths=.*|ReadOnlyPaths=${DATA_DIR}|g" \
         "$SYSTEMD_DIR/hadlink-redirect.service" > /etc/systemd/system/hadlink-redirect.service
 
     # Shorten service
     sed -e "s|Environment=HADLINK_PORT=8443|Environment=HADLINK_PORT=${SHORTEN_PORT}|g" \
         -e "s|Environment=HADLINK_STORAGE=.*|Environment=HADLINK_STORAGE=${DATA_DIR}/hadlink.db|g" \
-        -e "s|ExecStart=.*|ExecStart=${INSTALL_DIR}/bin/hadlink shorten|g" \
+        -e "s|ExecStart=.*|ExecStart=${INSTALL_DIR}/bin/hadlink-shorten|g" \
         -e "s|ReadWritePaths=.*|ReadWritePaths=${DATA_DIR}|g" \
         "$SYSTEMD_DIR/hadlink-shorten.service" > /etc/systemd/system/hadlink-shorten.service
 
@@ -644,7 +712,7 @@ systemd_uninstall() {
 
     echo ""
     echo "The following will NOT be removed (remove manually if desired):"
-    echo "  - /usr/local/bin/hadlink (binary)"
+    echo "  - /usr/local/bin/hadlink-shorten, hadlink-redirect (binaries)"
     echo "  - /usr/local/lib/libHadlink_Core.so (library)"
     echo "  - hadlink user account"
     if [ "$REMOVE_DATA" != true ]; then
@@ -696,7 +764,7 @@ systemd_uninstall() {
     log_info "Uninstall complete"
     echo ""
     echo "To fully remove hadlink, also run:"
-    echo "  sudo rm -f /usr/local/bin/hadlink"
+    echo "  sudo rm -f /usr/local/bin/hadlink-shorten /usr/local/bin/hadlink-redirect"
     echo "  sudo rm -f /usr/local/lib/libHadlink_Core.so"
     echo "  sudo ldconfig"
     echo "  sudo userdel hadlink"
@@ -773,6 +841,16 @@ while [ $# -gt 0 ]; do
         --install-dir)
             INSTALL_DIR="$2"
             shift 2
+            ;;
+        --from-release)
+            FROM_RELEASE=true
+            # Optional version argument (next arg if it doesn't start with --)
+            if [ $# -ge 2 ] && [[ ! "$2" =~ ^-- ]]; then
+                RELEASE_VERSION="$2"
+                shift 2
+            else
+                shift
+            fi
             ;;
         --remove-data)
             REMOVE_DATA=true

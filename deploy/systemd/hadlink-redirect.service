@@ -5,7 +5,7 @@ Documentation=https://github.com/jbsco/hadlink
 
 [Service]
 Type=simple
-ExecStart=/usr/local/bin/hadlink redirect
+ExecStart=/usr/local/bin/hadlink-redirect
 User=hadlink
 Group=hadlink
 

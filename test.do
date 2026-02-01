@@ -5,6 +5,9 @@ exec >&2
 
 redo-ifchange haskell/build
 
+echo "Running SPARK FFI freeze test..."
+redo-ifchange spark-core/tests/build-freeze-test
+
 echo "Running property-based tests..."
 cd haskell
 
