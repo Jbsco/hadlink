@@ -194,6 +194,27 @@ exit
 
 ---
 
+## Viewing Logs
+
+Both services emit structured JSON to stdout (one object per line):
+
+```json
+{"ts":"2026-01-15 08:30:12","level":"info","msg":"Link created","code":"Bmx9c8bI"}
+```
+
+```bash
+# Docker
+docker compose logs -f              # all services
+docker logs hadlink-redirect-1      # single service
+docker logs hadlink-shorten-1 | jq  # pretty-print JSON
+
+# Systemd
+journalctl -u hadlink-redirect -f
+journalctl -u hadlink-shorten -f --output cat | jq
+```
+
+---
+
 ## Troubleshooting
 
 ### Service Won't Start
