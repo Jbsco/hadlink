@@ -258,6 +258,19 @@ curl -I http://localhost:8080/Bmx9c8bI
 ./deploy/deploy.sh docker remove --remove-data  # Removes everything
 ```
 
+### Install from Release (no build required)
+
+```bash
+# Docker
+./deploy/deploy.sh docker start --from-release --generate-secret
+
+# Systemd
+sudo ./deploy/deploy.sh systemd start --from-release --generate-secret
+
+# Pin a specific version
+sudo ./deploy/deploy.sh systemd start --from-release v1.0.0 --generate-secret
+```
+
 For systemd deployment, manual setup, or additional options, see [DEPLOYMENT.md](docs/DEPLOYMENT.md).
 
 ---

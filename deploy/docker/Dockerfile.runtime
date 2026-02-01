@@ -1,0 +1,47 @@
+# Lightweight runtime image for pre-built hadlink binaries
+# Used with: deploy.sh --from-release (no build stage)
+
+FROM debian:bookworm-slim
+
+# Install minimal runtime dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    curl \
+    libgmp10 \
+    libffi8 \
+    libsqlite3-0 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create non-root user
+RUN useradd -r -s /sbin/nologin -u 1000 hadlink \
+    && mkdir -p /data /var/lib/hadlink \
+    && chown hadlink:hadlink /data /var/lib/hadlink
+
+# Copy pre-built binaries (placed by deploy.sh)
+COPY hadlink-shorten hadlink-redirect /usr/local/bin/
+COPY libHadlink_Core.so /usr/local/lib/
+
+# Set library path and update cache
+ENV LD_LIBRARY_PATH=/usr/local/lib
+RUN ldconfig
+
+# Set ownership and permissions
+RUN chmod 755 /usr/local/bin/hadlink-shorten /usr/local/bin/hadlink-redirect \
+    && chmod 644 /usr/local/lib/libHadlink_Core.so
+
+# Switch to non-root user
+USER hadlink
+
+# Default environment variables
+ENV HADLINK_STORAGE=/data/hadlink.db
+ENV HADLINK_PORT=8080
+
+# Expose both service ports
+EXPOSE 8080 8443
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD curl -s -o /dev/null http://localhost:${HADLINK_PORT}/ || exit 1
+
+# Default to redirect daemon
+CMD ["/usr/local/bin/hadlink-redirect"]
