@@ -240,7 +240,7 @@ By design:
 - FFI integration (Haskell calls SPARK via C ABI)
 - SPARK proofs at 100% for hadlink core
 
-### Phase 3 — Hardening (current)
+### Phase 3 — Hardening (complete)
 - Freeze SPARK API
 - Full proof coverage
 - Production hardening

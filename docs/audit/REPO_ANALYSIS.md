@@ -1,4 +1,4 @@
-> **Status Update (2026-01-27)**: This is the original analysis report. For current security status after fixes, see [README.md](README.md).
+> **Status Update (2026-02-01)**: Directory structure updated for v1.0.0 (split binaries, health, logging). This is the original analysis report. For current security status after fixes, see [README.md](README.md).
 
 ---
 
@@ -31,7 +31,7 @@ hadlink is a self-hosted, high-assurance URL shortener designed for automated sy
 - Provable correctness (formal verification)
 - Minimal and auditable architecture
 
-Version: 0.1.0-dev
+Version: 1.0.0
 License: AGPL-3.0-or-later
 Repository: https://github.com/Jbsco/hadlink
 
@@ -41,16 +41,23 @@ Repository: https://github.com/Jbsco/hadlink
 ```
 /home/jbsco/cs/hadlink/
 ├── haskell/                    # HTTP Server & Orchestration (Warp)
-│   ├── app/Main.hs            # Entry point: "shorten" or "redirect" daemons
-│   ├── src/
-│   │   ├── API.hs             # WAI application, HTTP handlers
+│   ├── app/
+│   │   ├── ShortenMain.hs     # Entry point: shorten daemon
+│   │   └── RedirectMain.hs    # Entry point: redirect daemon
+│   ├── src/                   # hadlink-common library
+│   │   ├── API/Resolve.hs     # Redirect routing and handlers
 │   │   ├── Types.hs           # Core type definitions
+│   │   ├── Store.hs           # SQLite persistence
+│   │   ├── Health.hs          # GET /health endpoint (database ping)
+│   │   └── Logging.hs         # Structured JSON logging (fast-logger)
+│   ├── src-shorten/           # hadlink-shorten-lib library
+│   │   ├── API/Shorten.hs     # Shorten routing and handlers
+│   │   ├── API.hs             # Combined WAI application
 │   │   ├── Canonicalize.hs    # URL validation (calls SPARK FFI)
 │   │   ├── ShortCode.hs       # Short code generation (calls SPARK FFI)
-│   │   ├── Store.hs           # SQLite persistence
+│   │   ├── SparkFFI.hs        # Foreign function interface to SPARK core
 │   │   ├── RateLimit.hs       # Token bucket rate limiting
-│   │   ├── ProofOfWork.hs     # Proof-of-work verification (SHA256)
-│   │   └── SparkFFI.hs        # Foreign function interface to SPARK core
+│   │   └── ProofOfWork.hs     # Proof-of-work verification (SHA256)
 │   ├── test/Properties.hs     # Property-based tests (Hedgehog)
 │   └── hadlink.cabal          # Cabal build manifest
 │
