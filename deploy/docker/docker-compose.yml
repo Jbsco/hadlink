@@ -25,7 +25,7 @@ services:
     mem_limit: 64m
     cpus: 0.2
     healthcheck:
-      test: ["CMD-SHELL", "curl -s -o /dev/null http://localhost:8080/ || exit 1"]
+      test: ["CMD-SHELL", "curl -sf http://localhost:8080/health || exit 1"]
       interval: 30s
       timeout: 5s
       retries: 3
@@ -64,7 +64,7 @@ services:
       - public
     mem_limit: 128m
     healthcheck:
-      test: ["CMD-SHELL", "curl -s -o /dev/null http://localhost:8443/ || exit 1"]
+      test: ["CMD-SHELL", "curl -sf http://localhost:8443/health || exit 1"]
       interval: 30s
       timeout: 5s
       retries: 3
