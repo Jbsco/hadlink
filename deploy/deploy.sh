@@ -135,7 +135,7 @@ Examples:
 
   # Install from release (no build required)
   ./deploy.sh docker start --from-release --generate-secret
-  sudo ./deploy.sh systemd start --from-release v1.0.0 --generate-secret
+  sudo ./deploy.sh systemd start --from-release v1.0.1 --generate-secret
 
 EOF
     exit 1

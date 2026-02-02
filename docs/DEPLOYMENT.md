@@ -64,7 +64,7 @@ Deploy hadlink without building from source. The `--from-release` flag downloads
 sudo ./deploy/deploy.sh systemd start --from-release --generate-secret
 
 # Pin a specific version
-sudo ./deploy/deploy.sh systemd start --from-release v1.0.0 --generate-secret
+sudo ./deploy/deploy.sh systemd start --from-release v1.0.1 --generate-secret
 ```
 
 **What it downloads:** A tarball (`hadlink-linux-x64.tar.gz`) from the GitHub release containing `hadlink-shorten`, `hadlink-redirect`, `libHadlink_Core.so`, and `BUILD_INFO`.

@@ -9,8 +9,8 @@
 - [Why a URL Shortener?](#why-a-url-shortener)
 - [Architecture](#architecture)
 - [Status](#status)
-- [Quick Start](#quick-start)
-- [Deployment](#deployment)
+- [Installation](#installation)
+- [Development](#development)
 - [Security](#security)
 - [Threat Model](#threat-model)
 - [Assurance Model](#assurance-model)
@@ -135,11 +135,11 @@ The redirect path is optimized for speed (Warp + SQLite lookup). Create operatio
 
 ## Status
 
-**Version**: 1.0.0
+**Version**: 1.0.1
 **Phase**: Phase 3 (Hardening) complete
 
-- SPARK core 100% verified (137 proof checks)
-- 24 property tests via Hedgehog (canonicalization, short codes, negative cases, rate limiting, proof-of-work)
+- SPARK core 100% verified
+- Property tests via Hedgehog (canonicalization, short codes, negative cases, rate limiting, proof-of-work)
 - Security self-audit complete (all P0/P1 items addressed)
 - Rate limiting integrated and tested (token bucket per IP)
 - FFI boundary frozen (API version 1, freeze test enforced)
@@ -153,27 +153,67 @@ See [ROADMAP.md](docs/ROADMAP.md) for details.
 
 ---
 
-## Quick Start
+## Installation
 
-### Docker (recommended)
-
-No build toolchain required — downloads pre-built binaries from GitHub Releases:
+### Arch Linux (AUR)
 
 ```bash
+yay -S hadlink-bin
+```
+
+Or manually:
+
+```bash
+git clone https://aur.archlinux.org/hadlink-bin.git
+cd hadlink-bin
+makepkg -si
+```
+
+After installing, create a secret and enable the services:
+
+```bash
+echo "HADLINK_SECRET=$(openssl rand -hex 16)" | sudo tee /etc/hadlink/secret.conf > /dev/null
+sudo chmod 600 /etc/hadlink/secret.conf
+sudo systemctl enable --now hadlink-shorten hadlink-redirect
+```
+
+### Docker
+
+Requires [Docker Desktop](https://docs.docker.com/desktop/):
+
+```bash
+# Pre-built binaries from GitHub Releases (no build toolchain required)
 ./deploy/deploy.sh docker start --from-release --generate-secret
 ```
 
-To build from source instead (containerized, requires [Docker Desktop](https://docs.docker.com/desktop/)):
+To build from source instead:
 
 ```bash
+# Build from source
 ./deploy/deploy.sh docker start --generate-secret
+
+# Open a development shell in the running container
+./deploy/deploy.sh docker shell
 ```
 
-For systemd, additional options, and manual setup, see [DEPLOYMENT.md](docs/DEPLOYMENT.md).
+### Systemd
 
-### Native build (for development)
+```bash
+sudo ./deploy/deploy.sh systemd start --from-release --generate-secret
 
-1. **[dinkelk/redo](https://github.com/dinkelk/redo)** - Build system (MIT), chosen for correct dependency tracking, minimal complexity, and a Haskell implementation that aligns with the project's toolchain.
+# Pin a specific release version
+sudo ./deploy/deploy.sh systemd start --from-release v1.0.1 --generate-secret
+```
+
+For proof-of-work, stop/remove, manual setup, and all options, see [DEPLOYMENT.md](docs/DEPLOYMENT.md).
+
+---
+
+## Development
+
+### Prerequisites
+
+1. **[dinkelk/redo](https://github.com/dinkelk/redo)** - Build system (MIT)
    ```bash
    git clone https://github.com/dinkelk/redo.git
    cd redo && ./do
@@ -182,12 +222,7 @@ For systemd, additional options, and manual setup, see [DEPLOYMENT.md](docs/DEPL
 
 2. **[Stack](https://github.com/commercialhaskell/stack)** - Haskell build tool (BSD-3-Clause)
    ```bash
-   # On most systems
    curl -sSL https://get.haskellstack.org/ | sh
-
-   # Or via package manager
-   # Arch: sudo pacman -S stack
-   # Ubuntu: sudo apt install haskell-stack
    ```
 
 3. **[Alire](https://alire.ada.dev/)** - Ada/SPARK package manager (GPL-3.0)
@@ -198,40 +233,20 @@ For systemd, additional options, and manual setup, see [DEPLOYMENT.md](docs/DEPL
    # Or download from https://alire.ada.dev
    ```
 
-   Then in `spark-core/` directory:
-   ```bash
-   cd spark-core
-   alr build        # Build SPARK core
-   alr exec -- gnatprove -P hadlink_core.gpr  # Run proofs
-   ```
-
 4. **[HLint](https://github.com/ndmitchell/hlint)** - Haskell style checker (BSD-3-Clause, optional)
    ```bash
-   # Install via Stack (recommended - matches project GHC version)
    cd haskell
    stack install hlint
-
-   # Or system package (may have version conflicts)
-   # Arch: sudo pacman -S hlint
    ```
 
 ### Build
 
 ```bash
-cd hadlink
 redo all      # Build everything
 redo test     # Run tests
 redo prove    # SPARK proofs
 redo style    # Check code style
-```
-
-### Common Commands
-
-```bash
-redo           # Show help
-redo clean     # Clean artifacts
-redo style     # Check SPARK and Haskell style
-redo generate-secret  # Generate deployment secret
+redo clean    # Clean artifacts
 ```
 
 ### Try It Locally
@@ -251,34 +266,6 @@ curl -I http://localhost:8080/Bmx9c8bI
 # HTTP/1.1 302 Found
 # Location: https://example.com/long/path
 ```
-
----
-
-## Deployment
-
-```bash
-# Docker with release binaries (no build required)
-./deploy/deploy.sh docker start --from-release --generate-secret
-
-# Docker from source (builds in container)
-./deploy/deploy.sh docker start --generate-secret
-
-# With proof-of-work enabled
-./deploy/deploy.sh docker start --from-release --generate-secret --pow-difficulty 8 --pow-difficulty-auth 2
-
-# Systemd with release binaries
-sudo ./deploy/deploy.sh systemd start --from-release --generate-secret
-
-# Pin a specific release version
-sudo ./deploy/deploy.sh systemd start --from-release v1.0.0 --generate-secret
-
-# Stop/remove
-./deploy/deploy.sh docker stop
-./deploy/deploy.sh docker remove              # Keeps data volume
-./deploy/deploy.sh docker remove --remove-data  # Removes everything
-```
-
-For manual setup, systemd details, viewing logs, and all options, see [DEPLOYMENT.md](docs/DEPLOYMENT.md).
 
 ---
 
