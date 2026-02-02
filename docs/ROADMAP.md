@@ -211,7 +211,7 @@ The following will **not** be added to maintain scope:
 
 ## Current Status
 
-**Current Version**: v1.0.0
+**Current Version**: v1.0.1
 **Current Phase**: Phase 3 (Hardening) complete
 **Last Updated**: 2026-02-01
 
