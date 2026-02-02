@@ -1,0 +1,181 @@
+\documentclass[11pt,letterpaper]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{parskip}
+\usepackage{hyperref}
+\usepackage{enumitem}
+
+\title{From Coursework to Craft:\\Single-Sprint Projects as Engineering Practice}
+\author{}  % TODO: Add author name
+\date{}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+% TODO: Write abstract (~100 words)
+% Core argument: Undergraduate engineering coursework builds breadth and teaches
+% students to finish. Short-timeline personal projects---constrained to one or two
+% weeks---complement this by training scope discipline, invariant-driven design,
+% and the judgment to stop. This paper compares both modes of learning and argues
+% that single-sprint projects are effective deliberate practice for professional
+% engineering skills that coursework alone does not emphasize.
+
+% note: coursework alone is insufficient, this is a major case for frequent project
+% work in academia prior to jumping into professional work.
+\end{abstract}
+
+% ============================================================================
+\section{Introduction}
+% ============================================================================
+
+% Thesis: Fast project turnover in undergraduate engineering builds breadth,
+% and single-sprint personal projects build judgment and carry momentum.
+%
+% Frame this as complementary, not adversarial. College teaches you to finish
+% under constraints set by others. Sprint projects teach you to set your own
+% constraints and live with them. This cultivates senior engineers early.
+%
+% Key observation: "You learn how to finish. You rarely learn how to stop."
+%
+% TODO: Write 2-3 paragraphs introducing the comparison.
+
+% ============================================================================
+\section{What Coursework Does Well}
+% ============================================================================
+
+% Be fair and specific. ECE programs in particular expose students to:
+%
+% - Multiple parallel projects across domains (digital, analog, embedded, software)
+% - Fixed deadlines with moving scopes
+% - Collaboration and communication under pressure
+% - Foundational knowledge across a broad surface area
+%
+% These are genuinely valuable. The point is not that coursework is insufficient---
+% it is that it trains a specific set of muscles. Programs that encourage
+% project work alongside coursework enhance development of real-world skills:
+%
+% - Time & scope management
+% - Design by invariants (project rubric requirements)
+% - Documentation of friction points and future work
+%
+% Acknowledge: grades incentivize completion, which is a real and useful skill.
+% Completing a project under someone else's constraints is not trivial.
+%
+% TODO: Write 2-3 paragraphs.
+
+% ============================================================================
+\section{What Coursework Does Not Emphasize}
+% ============================================================================
+
+% Three skills that sprint projects train more directly:
+%
+% \subsection{Scope Discipline}
+%
+% In coursework, scope creep is expected---requirements change, features get added
+% to meet rubric items. Cutting features feels like failure.
+%
+% In practice, cutting features is the job. Most engineering value comes from what
+% you don't build. A constrained personal project forces this: there is no rubric
+% to optimize for, no TA to ask for an extension. You must decide what matters and
+% what doesn't, then commit.
+%
+% \subsection{Invariant-Driven Design}
+%
+% Course projects emphasize outputs: demonstrations, reports, "it works on the
+% happy path." Sprint projects reward defining invariants early---what must always
+% be true---and designing around failure modes. This is where professional
+% engineering actually lives.
+%
+% Introduce the concept of "design by non-goals": explicitly documenting what the
+% system will never do, and enforcing those boundaries. This is uncommon in
+% coursework but standard in mature engineering organizations.
+%
+% \subsection{Taste and Restraint}
+%
+% You cannot brute-force a one-week project with complexity. You must choose
+% conservative tools, reject clever abstractions, and bias toward debuggability.
+% This is professional taste forming---and it is difficult to practice in a
+% semester-long project where complexity can always be deferred.
+%
+% TODO: Write 3-4 paragraphs across subsections.
+
+% ============================================================================
+\section{Single-Sprint Projects as Deliberate Practice}
+% ============================================================================
+
+% Define the format: 1--2 weeks, self-imposed scope, production-quality target.
+%
+% Characteristics:
+% - No grade safety net---every decision reflects directly on you
+% - Design trade-offs are permanent (no "fix it next sprint")
+% - Forces early architectural clarity
+% - Simulates real sprint timelines
+%
+% Compare to coursework sprints: in college, a "sprint" often means a burst
+% of effort before a deadline. In industry, a sprint is a bounded commitment
+% with explicit deliverables and explicit cuts. Single-sprint personal projects
+% practice the latter.
+%
+% This is also where time management and expectation management are learned
+% organically. There is no project manager---you are the project manager.
+%
+% TODO: Write 2-3 paragraphs.
+
+% ============================================================================
+\section{A Concrete Example}
+% ============================================================================
+
+% Introduce hadlink subtly---not as a showcase, but as an illustration.
+%
+% "In a recent single-sprint project, I constrained myself to a ten-day timeline
+% and a sharply defined problem: a URL redirection service with formally verified
+% core logic. The limitation forced me to define non-goals early (no analytics,
+% no user accounts, no custom aliases), choose conservative tools (SQLite, Warp),
+% and freeze scope quickly. The result was a small but production-ready system
+% with formal proof obligations rather than an expanding prototype."
+%
+% Key details to weave in:
+% - 10 days from first commit to v1.0.0 (Jan 22 -- Feb 1, 2026)
+% - Explicit non-goals documented and enforced in contribution policy
+% - Scope cuts made visible: no web UI, no click tracking, no custom aliases
+% - Design by invariant: "All stored URLs are canonicalized" as a system property
+%   that guided every architectural decision
+% - Phased roadmap (v0.1.0 -> v0.5.0 -> v1.0.0) within the sprint
+%
+% Tone: understated. The project is the example, not the point.
+%
+% TODO: Write 2-3 paragraphs.
+
+% ============================================================================
+\section{Lessons and Advice}
+% ============================================================================
+
+% Addressed to students and early-career engineers.
+%
+% Practical suggestions:
+% - Pick a problem you can define in one sentence
+% - Write your non-goals before your goals
+% - Set a hard deadline and do not move it
+% - Ship something real, even if small
+% - Treat the constraint as the feature, not the limitation
+%
+% Broader point: the habit of scoping, cutting, and shipping builds a skill set
+% that complements coursework. Neither alone is sufficient. Together, they
+% approximate the reality of professional engineering more closely than either
+% can alone.
+%
+% TODO: Write 2-3 paragraphs.
+
+% ============================================================================
+\section{Conclusion}
+% ============================================================================
+
+% Reinforce:
+% - Coursework and sprint projects are complementary, not competing
+% - Sprint projects train judgment, ownership, and restraint
+% - These are the skills that distinguish an engineer who can build from one
+%   who can decide what to build
+%
+% TODO: Write 1-2 paragraphs.
+
+\end{document}

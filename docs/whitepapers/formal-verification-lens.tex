@@ -1,0 +1,222 @@
+\documentclass[11pt,letterpaper]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{parskip}
+\usepackage{hyperref}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{booktabs}
+
+\lstset{
+  basicstyle=\small\ttfamily,
+  keywordstyle=\color{blue!70!black},
+  commentstyle=\color{gray},
+  stringstyle=\color{red!60!black},
+  breaklines=true,
+  frame=single,
+  xleftmargin=1em,
+  framexleftmargin=0.5em,
+}
+
+\title{SPARK as a Design Lens:\\Beyond Verification in High-Assurance Systems}
+\author{}  % TODO: Add author name
+\date{}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+% TODO: Write abstract (~100 words)
+% Core argument: SPARK is typically discussed as a verification tool---a way to
+% prove that code satisfies its specification. This paper argues that the greater
+% benefit, particularly for small infrastructure projects, is architectural.
+% Writing SPARK contracts forces the engineer to define boundaries, assumptions,
+% and scope before implementation begins. The act of specifying preconditions and
+% postconditions serves as cognitive scaffolding that shapes design, limits
+% complexity, and produces more maintainable systems. We illustrate this with
+% hadlink, a URL redirection service where SPARK contracts guided architectural
+% decisions from project inception.
+\end{abstract}
+
+% ============================================================================
+\section{Introduction}
+% ============================================================================
+
+% Thesis: Using SPARK not only verifies code correctness---it forces the engineer
+% to explicitly define boundaries, assumptions, and scope. This shapes architecture,
+% limits unnecessary complexity, and produces more predictable systems.
+%
+% Frame the conventional view: formal verification as a post-hoc correctness check.
+% Then the alternative: formal verification as a design-time discipline that
+% produces better architecture as a side effect.
+%
+% "The act of annotating contracts acts as mental scaffolding, shaping architecture
+% and forcing minimalism."
+%
+% TODO: Write 2-3 paragraphs.
+
+% ============================================================================
+\section{Contracts as Design Decisions}
+% ============================================================================
+
+% Every precondition, postcondition, and type declaration is a decision about what
+% the system can and cannot safely assume.
+%
+% Concrete example---Canonicalize postcondition:
+%
+% \begin{lstlisting}[language=Ada]
+% function Canonicalize (Input : String) return Canonicalize_Result
+% with
+%   Pre  => Input'Length >= 1 and then
+%           Input'Length <= Max_URL_Length and then
+%           Input'First = 1 and then
+%           Input'Last < Integer'Last - 10,
+%   Post => (if Canonicalize'Result.Status = Success
+%            then To_String (Canonicalize'Result.URL) = Input and then
+%                 Is_HTTP_Or_HTTPS (Canonicalize'Result.URL) and then
+%                 Not_Private_Address (Canonicalize'Result.URL) and then
+%                 No_Credentials (Canonicalize'Result.URL));
+% \end{lstlisting}
+%
+% This postcondition is not just a correctness check. It is a design statement:
+% "On success, the output preserves the input exactly, and four security properties
+% hold." Every downstream consumer can rely on these properties without
+% re-checking them. The contract defines the trust boundary.
+%
+% Similarly, Make_Short_Code:
+%
+% \begin{lstlisting}[language=Ada]
+% function Make_Short_Code (URL : Valid_URL; Secret : Secret_Key)
+%   return Short_Code
+% with
+%   Pre  => Length (URL) >= 7,
+%   Post => Length (Make_Short_Code'Result) = Short_Code_Length;
+% \end{lstlisting}
+%
+% Fixed-length output. Deterministic. No side effects. These are architectural
+% commitments, not just proof obligations.
+%
+% TODO: Write 2-3 paragraphs with embedded code listings.
+
+% ============================================================================
+\section{Architecture Emerging from Constraints}
+% ============================================================================
+
+% SPARK constraints directly influenced hadlink's architecture in several ways:
+%
+% \subsection{Opaque Types as Proof-Driven Encapsulation}
+%
+% Valid_URL and Short_Code are declared as private types:
+%
+% \begin{lstlisting}[language=Ada]
+% type Valid_URL is private;
+% type Short_Code is private;
+% \end{lstlisting}
+%
+% This was not a style choice. The prover cannot reason about internal
+% representation unless construction goes through a proven function
+% (Make_Valid_URL). This enforces the invariant: Valid_URL can only be
+% created by Canonicalize. The type system becomes an architectural boundary.
+%
+% \subsection{Expression Functions for Proof Transparency}
+%
+% Query functions are written as expression functions (single-line definitions)
+% because they are fully expanded during proof:
+%
+% \begin{lstlisting}[language=Ada]
+% function Is_HTTP_Or_HTTPS (URL : Valid_URL) return Boolean is
+%   (Has_Valid_Scheme (To_String (URL)));
+% \end{lstlisting}
+%
+% A multi-line body function would require an additional assume. The proof
+% requirement drove the code structure.
+%
+% \subsection{Ghost Lemma for Predicate Substitution}
+%
+% An attempt to use Type_Invariant was blocked by SPARK RM 7.3.2(2). The
+% workaround---a ghost lemma with two documented assumes for pure function
+% determinism---confined all trust assumptions to a single location:
+%
+% \begin{lstlisting}[language=Ada]
+% pragma Assume (Has_Credentials (A) = Has_Credentials (B),
+%   "Pure function determinism: A = B implies f(A) = f(B)");
+% \end{lstlisting}
+%
+% This is 2 assumes in the entire codebase, both in a ghost procedure that
+% generates no runtime code. The constraint shaped the proof strategy, which
+% shaped the architecture.
+%
+% \subsection{Split Binaries from Proof Boundaries}
+%
+% The separation into shorten and redirect binaries was reinforced by SPARK:
+% the redirect path needs no validation logic (URLs are already canonical),
+% so it has zero SPARK dependency. The proof boundary became an architectural
+% boundary became a deployment boundary.
+%
+% TODO: Write subsection prose with code listings.
+
+% ============================================================================
+\section{Proof Results}
+% ============================================================================
+
+% Present the verification outcomes concisely:
+%
+% \begin{table}[h]
+% \centering
+% \begin{tabular}{lr}
+% \toprule
+% Metric & Value \\
+% \midrule
+% Total proof obligations & 137 \\
+% Verified automatically (CVC5) & 137 (100\%) \\
+% Explicit assumes & 2 (ghost lemma only) \\
+% Assumes in business logic & 0 \\
+% \bottomrule
+% \end{tabular}
+% \end{table}
+%
+% Breakdown by check type: range checks (31), overflow (30), precondition (29),
+% index (11), loop invariant init/preserv (18), postcondition (9), assert (3),
+% length (3), division (2), initialization (1).
+%
+% Key point: all checks solved in 0--1 SMT steps. The proofs are not expensive
+% or fragile---they are consequences of clean contracts.
+%
+% TODO: Write 1-2 paragraphs with table.
+
+% ============================================================================
+\section{Lessons Beyond SPARK}
+% ============================================================================
+
+% The mindset transfers even without SPARK:
+%
+% - "Every function must declare its assumptions explicitly" leads to cleaner APIs
+% - Defining what the system will NOT do (non-goals) is as valuable as defining
+%   what it will do
+% - If you cannot state a function's postcondition, you do not understand
+%   what it does
+% - Minimalism is a natural consequence of having to prove things about your code
+%
+% SPARK enforces this via the compiler. Without SPARK, the same discipline can
+% be applied through design reviews, documentation, and property-based testing.
+% The compiler just makes it non-optional.
+%
+% TODO: Write 2-3 paragraphs.
+
+% ============================================================================
+\section{Conclusion}
+% ============================================================================
+
+% Reinforce:
+% - SPARK is both a guardrail and a mentor
+% - The verification output is valuable, but the design discipline is more so
+% - For small infrastructure projects, formal methods are not overhead---they
+%   are architecture
+% - The question is not "can we afford to verify?" but "can we afford not to
+%   think this carefully?"
+%
+% TODO: Write 1-2 paragraphs.
+
+% References:
+% - https://www.adacore.com/uploads/books/Spark-Guidance-1.2-web.pdf
+% - https://docs.adacore.com/live/wave/spark2014/html/spark2014_ug/en/usage_scenarios.html#tool-qualification
+\end{document}

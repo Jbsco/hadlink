@@ -1,0 +1,243 @@
+\documentclass[11pt,letterpaper]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{parskip}
+\usepackage{hyperref}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{booktabs}
+
+\lstset{
+  basicstyle=\small\ttfamily,
+  keywordstyle=\color{blue!70!black},
+  commentstyle=\color{gray},
+  stringstyle=\color{red!60!black},
+  breaklines=true,
+  frame=single,
+  xleftmargin=1em,
+  framexleftmargin=0.5em,
+}
+
+\title{hadlink: A Minimal, High-Assurance URL Redirection Service}
+\author{}  % TODO: Add author name
+\date{}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+% TODO: Write abstract (~100 words)
+% Core argument: URL shorteners are deceptively small systems with disproportionate
+% blast radius. Most implementations conflate policy and mechanism, trust input too
+% broadly, and are difficult to reason about. hadlink is a URL redirection service
+% designed for infrastructure use cases (CI/CD, QR codes, SMS) where deterministic
+% behavior, security, and auditability matter more than feature breadth. Its core
+% validation and encoding logic is formally verified using SPARK Ada, while the
+% service layer is composed in Haskell. This paper describes the system's design,
+% assurance model, and deployment approach.
+\end{abstract}
+
+% ============================================================================
+\section{Problem Statement}
+% ============================================================================
+
+% "This is a deceptively small problem with disproportionate blast radius."
+%
+% URL shorteners are frequently:
+% - Abuse targets (spam, phishing, malware distribution)
+% - Redirectors of last resort (anything that accepts a URL becomes an open relay)
+% - Deployed casually (minimal validation, no formal reasoning about behavior)
+%
+% Most implementations:
+% - Conflate policy and mechanism (validation mixed with routing mixed with storage)
+% - Trust input too much (accepting arbitrary URLs, including private addresses)
+% - Are hard to reason about (no formal specification, behavior varies by input)
+%
+% The problem is small enough to be tractable for formal methods, but consequential
+% enough that the effort is justified.
+%
+% TODO: Write 2-3 paragraphs.
+
+% ============================================================================
+\section{Design Goals and Non-Goals}
+% ============================================================================
+
+% This section signals scope maturity.
+%
+% \subsection{Goals}
+% - Deterministic behavior (same URL always produces same short code)
+% - Minimal trusted computing base
+% - Explicit failure modes (enumerated error codes, no silent failures)
+% - Deployable on constrained systems (single binary, SQLite, no external services)
+%
+% \subsection{Non-Goals}
+% - Marketing analytics or click tracking
+% - User accounts or dashboards
+% - Custom aliases
+% - Dynamic policy engines
+% - JavaScript redirects or link previews
+% - Feature parity with SaaS shorteners (Bitly, TinyURL)
+%
+% "These are conscious trade-offs, not omissions."
+%
+% Non-goals are documented in the repository and enforced in the contribution
+% policy. Pull requests that conflict with non-goals are closed with explanation.
+%
+% TODO: Write 2-3 paragraphs.
+
+% ============================================================================
+\section{Architecture}
+% ============================================================================
+
+% Two-layer design with intentional separation:
+%
+% \subsection{SPARK Core}
+% Formally verified logic for:
+% - URL canonicalization (scheme validation, private address rejection,
+%   credentials detection)
+% - Short code generation (HMAC-SHA256 via SPARKNaCl, Base62 encoding)
+%
+% Contains no IO, networking, storage, concurrency, or configuration parsing.
+% 137 proof obligations, all verified automatically by CVC5.
+%
+% \subsection{Haskell Service Layer}
+% Composes the system: HTTP (Warp), storage (SQLite), rate limiting, structured
+% logging, proof-of-work validation. Property-tested via Hedgehog.
+%
+% \subsection{FFI Boundary}
+% Minimal and frozen (API version 1). Three exported C functions:
+% hadlink\_canonicalize, hadlink\_make\_short\_code, hadlink\_api\_version.
+% FFI layer is explicitly outside SPARK verification (pragma SPARK\_Mode Off).
+% A freeze test ensures the interface does not change without a version bump.
+% - The FFI is thin by design
+% - HTTP (Warp) is selected because it is thin
+%
+% \subsection{Split Binaries}
+% Two separate executables:
+% - \texttt{hadlink-redirect}: Read-only, fast, no SPARK dependency. Exposed
+%   to network.
+% - \texttt{hadlink-shorten}: Write path, includes SPARK FFI, rate limiting,
+%   PoW. Restricted to LAN/VPN.
+%
+% The redirect binary does not link libHadlink\_Core.so. This is least-privilege
+% at the binary level.
+%
+% \subsection{Storage}
+% SQLite in WAL mode. Append-only on the write path. Read-only access for
+% redirect. Schema: short\_code (PK) -> canonical\_url, created\_at.
+% INSERT OR IGNORE provides idempotent creation (deterministic codes mean
+% duplicate requests are harmless).
+%
+% TODO: Write section prose, optionally include architecture diagram.
+
+% ============================================================================
+\section{Formal Assurance}
+% ============================================================================
+
+% What is proven:
+% - All stored URLs have valid HTTP/HTTPS scheme
+% - No stored URL contains credentials (user:pass@host)
+% - No stored URL points to a private address (RFC 1918, RFC 4193, link-local)
+% - Short codes are exactly 8 Base62 characters
+% - All array accesses are in bounds
+% - No integer overflow in encoding logic
+%
+% What is NOT proven:
+% - FFI marshaling correctness (pragma SPARK_Mode Off)
+% - Haskell service behavior (property-tested, not formally verified)
+% - SQLite behavior (trusted dependency)
+% - Network-level properties (TLS, DNS)
+%
+% Assumptions made explicit:
+% - 2 pragma Assume statements, both in a ghost lemma, both documenting
+%   pure function determinism (A = B implies f(A) = f(B))
+% - Zero assumes in business logic
+%
+% \begin{table}[h]
+% \centering
+% \begin{tabular}{lr}
+% \toprule
+% Check type & Count \\
+% \midrule
+% Range checks & 31 \\
+% Overflow checks & 30 \\
+% Precondition & 29 \\
+% Index checks & 11 \\
+% Loop invariants & 18 \\
+% Postcondition & 9 \\
+% Other & 9 \\
+% \midrule
+% Total & 137 \\
+% \bottomrule
+% \end{tabular}
+% \end{table}
+%
+% The project references DO-278A (SIL-3) integrity objectives as an architectural
+% guide, but is not certified. This is a single-developer project without
+% independent verification resources.
+%
+% TODO: Write 2-3 paragraphs with table.
+
+% ============================================================================
+\section{Deployment}
+% ============================================================================
+
+% This section is rare in whitepapers and valuable.
+%
+% Three deployment methods:
+% - Docker (pre-built binaries via GitHub Releases, or build from source)
+% - Systemd (direct installation with security-hardened unit files)
+% - Arch Linux AUR (hadlink-bin package)
+%
+% Systemd hardening: NoNewPrivileges, ProtectSystem=strict, ProtectHome,
+% PrivateTmp, MemoryDenyWriteExecute, resource limits (128M shorten, 64M redirect).
+%
+% Configuration minimalism: environment variables only, no config file parser,
+% no YAML/TOML. Secret management via file-based EnvironmentFile.
+%
+% Failure behavior: both services restart on failure (RestartSec=5s). Redirect
+% service is stateless and recovers instantly. Shorten service holds no
+% in-memory state beyond rate limiter (STM-based, rebuilt on restart).
+%
+% Pre-built binaries available from GitHub Releases---no build toolchain
+% required for deployment.
+%
+% TODO: Write 2-3 paragraphs.
+
+% ============================================================================
+\section{Limitations and Future Work}
+% ============================================================================
+
+% This section earns credibility.
+%
+% Intentional limitations:
+% - SQLite scaling envelope (sufficient for infrastructure use, not for
+%   high-volume marketing workloads)
+% - No built-in abuse detection (rate limiting and PoW mitigate, but do not
+%   detect malicious URLs)
+% - Single-node only (no replication, no distributed deployment)
+% - No URL expiration or deletion (append-only by design)
+%
+% Potential future work:
+% - LMDB backend for higher read throughput
+% - TLS termination (currently relies on reverse proxy)
+% - Metrics export (Prometheus endpoint)
+%
+% "These are conscious trade-offs, not omissions. Each limitation preserves
+% a property the system depends on."
+%
+% TODO: Write 1-2 paragraphs.
+
+% ============================================================================
+\section{Conclusion}
+% ============================================================================
+
+% Reinforce:
+% - Correctness over features
+% - Simplicity as a security primitive
+% - Formal methods are tractable for small infrastructure services
+% - The approach---SPARK core, thin FFI, Haskell composition---is applicable
+%   to other services with similar trust requirements
+%
+% TODO: Write 1-2 paragraphs.
+
+\end{document}
