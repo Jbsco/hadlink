@@ -11,6 +11,7 @@
   keywordstyle=\color{blue!70!black},
   commentstyle=\color{gray},
   stringstyle=\color{red!60!black},
+  showstringspaces=false,
   breaklines=true,
   frame=single,
   xleftmargin=1em,
@@ -25,7 +26,7 @@
 \maketitle
 
 \begin{abstract}
-SPARK is typically discussed as a verification tool, a way to prove that code satisfies its specification. This paper argues that verification carries a significant secondary benefit, particularly for small infrastructure projects: architectural clarity. Writing SPARK contracts forces the engineer to define boundaries, assumptions, and scope before implementation begins. The act of specifying preconditions and postconditions serves as cognitive scaffolding that shapes design, limits complexity, and produces more maintainable systems. We illustrate this with hadlink, a URL redirection service where SPARK contracts guided architectural decisions from project inception.
+SPARK is typically discussed as a verification tool, a way to prove that code satisfies its specification. This paper argues that verification carries a significant secondary benefit, particularly for small infrastructure projects: architectural clarity. Writing SPARK contracts forces the engineer to define boundaries, assumptions, and scope before implementation begins. The act of specifying preconditions and postconditions serves as cognitive scaffolding that shapes design, limits complexity, and produces more maintainable systems. We illustrate this with \texttt{hadlink}, a URL redirection service where SPARK contracts guided architectural decisions from project inception.
 \end{abstract}
 
 % ============================================================================
@@ -36,13 +37,13 @@ The conventional view of formal verification treats it as a post-hoc correctness
 
 When you write a SPARK contract before writing the implementation, you are forced to answer questions that might otherwise remain implicit. What can this function assume about its inputs? What does it guarantee about its outputs? What states are unreachable? These questions have architectural consequences. A precondition that requires normalized input implies that normalization happens elsewhere. A postcondition that guarantees a security property implies that the property need not be re-checked downstream. The contract becomes a design document that the compiler enforces.
 
-This paper explores the architectural effects of contract-first development using SPARK, drawing on hadlink, a URL redirection service where contracts guided design from project inception. The primary value of SPARK remains verification: machine-checked guarantees about program behavior. But the discipline of writing contracts produces cleaner architecture as a welcome side effect, and that effect is worth examining.
+This paper explores the architectural effects of contract-first development using SPARK, drawing on \texttt{hadlink}, a URL redirection service where contracts guided design from project inception. The primary value of SPARK remains verification: machine-checked guarantees about program behavior. But the discipline of writing contracts produces cleaner architecture as a welcome side effect, and that effect is worth examining.
 
 % ============================================================================
 \section{Contracts as Design Decisions}
 % ============================================================================
 
-Every precondition, postcondition, and type declaration is a decision about what the system can and cannot safely assume. Consider the contract for hadlink's canonicalization function:
+Every precondition, postcondition, and type declaration is a decision about what the system can and cannot safely assume. Consider the contract for \texttt{hadlink}'s canonicalization function:
 
 \begin{lstlisting}[language=Ada]
 function Canonicalize (Input : String) return Canonicalize_Result
@@ -76,7 +77,7 @@ The contract specifies fixed-length output, deterministic behavior, and no side 
 \section{Architecture Emerging from Constraints}
 % ============================================================================
 
-SPARK constraints directly influenced hadlink's architecture in several ways. Each constraint, initially encountered as a limitation, became an architectural decision that improved the system.
+SPARK constraints directly influenced \texttt{hadlink}'s architecture in several ways. Each constraint, initially encountered as a limitation, became an architectural decision that improved the system.
 
 \subsection{Opaque Types as Proof-Driven Encapsulation}
 
@@ -102,7 +103,7 @@ A multi-line body function would require the prover to reason about function beh
 
 \subsection{Ghost Lemma for Predicate Substitution}
 
-An attempt to use \texttt{Type\_Invariant} was blocked by SPARK RM 7.3.2(2), which restricts type invariants in certain contexts. The workaround, a ghost lemma with two documented assumes for pure function determinism, confined all trust assumptions to a single location:
+An attempt to use \texttt{Type\_Invariant} was blocked by SPARK RM 7.3.2(2) \cite{sparkrm}, which restricts type invariants in certain contexts. The workaround, a ghost lemma with two documented assumes for pure function determinism, confined all trust assumptions to a single location:
 
 \begin{lstlisting}[language=Ada]
 pragma Assume (Has_Credentials (A) = Has_Credentials (B),
@@ -113,7 +114,7 @@ These are the only two assumes in the entire codebase, both in a ghost procedure
 
 \subsection{Split Binaries from Proof Boundaries}
 
-The separation into shorten and redirect binaries was reinforced by SPARK. The redirect path needs no validation logic because URLs in the database are already canonical. This means the redirect binary has zero SPARK dependency. The proof boundary became an architectural boundary, which became a deployment boundary. The component exposed to untrusted network traffic carries the smallest possible trusted computing base.
+The separation into shorten and redirect binaries was reinforced by SPARK. The redirect path needs no validation logic because URLs in the database are already canonical, which means the redirect binary has zero SPARK dependency. What began as a proof boundary naturally became an architectural boundary, and ultimately a deployment boundary. The component exposed to untrusted network traffic carries the smallest possible trusted computing base.
 
 % ============================================================================
 \section{Proof Results}
@@ -133,7 +134,7 @@ Explicit assumes & 2 (ghost lemma only) \\
 Assumes in business logic & 0 \\
 \bottomrule
 \end{tabular}
-\caption{Verification summary for hadlink's SPARK core.}
+\caption{Verification summary for \texttt{hadlink}'s SPARK core.}
 \end{table}
 
 The proof obligations break down by type: range checks (31), overflow checks (30), preconditions (29), loop invariants (18), index checks (11), postconditions (9), and other checks including assertions, length, division, and initialization (9). All checks are solved in minimal SMT steps. The proofs are neither expensive nor fragile; they are natural consequences of contracts that accurately describe the code's behavior. When contracts match implementation cleanly, the prover's job is straightforward.
@@ -146,11 +147,11 @@ The contract-first mindset transfers even without SPARK. Several principles emer
 
 First, every function should declare its assumptions explicitly. Even without machine-checked contracts, documenting preconditions leads to cleaner APIs. Callers know what they must provide; implementations know what they can assume. Ambiguity at function boundaries is a source of bugs, and explicit assumptions reduce that ambiguity.
 
-Second, defining what a system will not do is as valuable as defining what it will do. hadlink's non-goals (no analytics, no user accounts, no custom aliases) are documented and enforced. This practice, common in mature engineering organizations, prevents scope creep and communicates intent. The discipline of writing non-goals mirrors the discipline of writing preconditions: both constrain the system in ways that make reasoning easier.
+Second, defining what a system will not do is as valuable as defining what it will do. \texttt{hadlink}'s non-goals (no analytics, no user accounts, no custom aliases) are documented and enforced. This practice, common in mature engineering organizations, prevents scope creep and communicates intent. The discipline of writing non-goals mirrors the discipline of writing preconditions: both constrain the system in ways that make reasoning easier.
 
 Third, if you cannot state a function's postcondition, you do not fully understand what it does. The act of writing postconditions forces clarity about behavior. What does this function guarantee? What can its caller rely on? These questions have answers whether or not you write them down, but writing them down reveals gaps in understanding.
 
-Finally, minimalism follows naturally from having to prove things about your code. Every additional feature is another proof obligation, another place where the contract must be specified and verified. This cost, even when only cognitive rather than computational, biases design toward simplicity. SPARK enforces these principles via the compiler. Without SPARK, the same discipline can be applied through design reviews, documentation, and property-based testing. The compiler just makes it non-optional.
+Finally, minimalism follows naturally from having to prove things about your code. Every additional feature is another proof obligation, another place where the contract must be specified and verified. This cost, even when only cognitive rather than computational, biases design toward simplicity. SPARK enforces these principles via the compiler \cite{sparkguidance}. Without SPARK, the same discipline can be applied through design reviews, documentation, and property-based testing. The compiler just makes it non-optional.
 
 % ============================================================================
 \section{Conclusion}
@@ -162,6 +163,21 @@ The question for such projects is not ``can we afford to verify?'' but ``can we 
 
 \section*{Availability}
 
-hadlink is open source and available at \url{https://github.com/Jbsco/hadlink}.
+\texttt{hadlink} is open source and available at \url{https://github.com/Jbsco/hadlink}.
+
+\begin{thebibliography}{9}
+
+\bibitem{sparkrm}
+AdaCore.
+\textit{SPARK Reference Manual}.
+\url{https://docs.adacore.com/spark2014-docs/html/lrm/}
+
+\bibitem{sparkguidance}
+AdaCore and Thales.
+\textit{Implementation Guidance for the Adoption of SPARK}, Release 1.2.
+AdaCore, 2022.
+\url{https://www.adacore.com/uploads/books/Spark-Guidance-1.2-web.pdf}
+
+\end{thebibliography}
 
 \end{document}
