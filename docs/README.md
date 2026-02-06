@@ -19,6 +19,7 @@
 - [Cryptography](#cryptography)
 - [Toolchain](#toolchain)
 - [Assurance Model](#assurance-model)
+- [Whitepapers](#whitepapers)
 - [References](#references)
 
 ---
@@ -322,6 +323,14 @@ This project references DO-278A (Software Integrity Level 3) objectives for:
 See [ROADMAP.md](ROADMAP.md#do-278a-sil-3-mapping) for detailed objective mapping.
 
 **This project is not certified.** It is a single-developer project without certification authority or independent verification resources.
+
+---
+
+## Whitepapers
+
+- **[hadlink: A Minimal, High-Assurance URL Redirection Service](whitepapers/hadlink.pdf)** - Design philosophy, assurance model, and deployment approach
+- **[SPARK as a Design Lens: Beyond Verification in High-Assurance Systems](whitepapers/formal-verification-lens.pdf)** - How writing SPARK contracts shaped architectural decisions as a design-time discipline
+- **[From Coursework to Craft: Single-Sprint Projects as Engineering Practice](whitepapers/sprint-projects.pdf)** - How single-sprint personal projects build engineering skills that coursework alone does not emphasize
 
 ---
 
