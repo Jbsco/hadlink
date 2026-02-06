@@ -1,0 +1,98 @@
+\documentclass[11pt,letterpaper]{article}
+\usepackage[margin=1in]{geometry}
+\usepackage{parskip}
+\usepackage{hyperref}
+\usepackage{enumitem}
+
+\title{From Coursework to Craft:\\Single-Sprint Projects as Engineering Practice}
+\author{Jacob Seman}
+\date{}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+Undergraduate engineering coursework builds breadth and teaches students to finish under externally imposed constraints. These are necessary skills, but they are not sufficient preparation for professional practice. Short-timeline personal projects, constrained to one or two weeks, complement coursework by training scope discipline, invariant-driven design, and the judgment to stop. This paper compares both modes of learning and argues that single-sprint projects are effective deliberate practice for engineering skills that coursework alone does not emphasize. Programs that integrate frequent project work alongside traditional coursework better prepare students for the realities of professional engineering.
+\end{abstract}
+
+% ============================================================================
+\section{Introduction}
+% ============================================================================
+
+Not all engineering programs are structured the same way. Some are built primarily around homework sets and exams, with projects appearing only as semester-long capstones. Others intersperse shorter, frequent projects on two- to four-week timelines alongside traditional coursework. The difference matters. In programs that provision sprint-like projects throughout the curriculum, students practice scoping, designing, and delivering complete systems multiple times per semester. In programs that do not, students may graduate having completed only one or two open-ended projects in four years.
+
+Both models build foundational knowledge. But programs that include frequent short projects better approximate the rhythm of professional engineering, where the unit of work is not a problem set or an exam but a bounded deliverable with real trade-offs. Students in these programs learn earlier that finishing is not the same as completing, and that deciding what to leave out is as important as deciding what to include.
+
+This paper argues that single-sprint personal projects, constrained to one or two weeks with a self-imposed scope and a production-quality target, complement both models of coursework. For students in project-heavy programs, they reinforce and extend skills already being developed. For students in traditional programs, they fill a gap that homework and exams cannot address. In either case, they train ownership, architectural judgment, and restraint in ways that externally defined coursework does not.
+
+% ============================================================================
+\section{What Coursework Does Well}
+% ============================================================================
+
+Electrical and computer engineering programs, in particular, expose students to a demanding breadth of work. In any given semester a student may be running multiple parallel efforts across digital design, analog circuits, embedded systems, and software, each with its own tools, constraints, and deadlines. This forces rapid context-switching and builds a broad technical surface area that is difficult to acquire any other way. Grades incentivize finishing, and finishing under someone else's constraints is not trivial. Fixed deadlines, shifting requirements, and collaborative dynamics all mirror aspects of professional work.
+
+Programs that provision shorter, frequent projects within the syllabus go further. When a two- to four-week project appears alongside homework and exams, students practice a different set of skills: time and scope management against competing obligations, design around fixed requirements with real trade-offs, and documentation of friction points and future work. These programs produce graduates who have already experienced the cycle of scoping, building, and delivering multiple times before entering the workforce. The project cadence itself is a form of training.
+
+Programs built exclusively around homework, exams, and a single capstone do not offer this repetition. Students in these programs are often technically strong but have limited practice making the kinds of decisions that define professional work: what to build, what to cut, and when a system is done. The grade incentive rewards completion and breadth, which are necessary but not sufficient. The skills that distinguish a competent engineer from a mature one, scope judgment, architectural restraint, and the confidence to leave things out, require repeated practice that traditional coursework alone does not provide.
+
+% ============================================================================
+\section{What Coursework Does Not Emphasize}
+% ============================================================================
+
+Programs that include frequent projects develop these skills partially, but even in those programs the scope is externally defined. The rubric sets the floor, the deadline sets the ceiling, and the student optimizes within that frame. Three skills in particular are difficult to train under externally imposed constraints.
+
+\subsection{Scope Discipline}
+
+In coursework, scope creep is expected. Requirements change mid-semester, features get added to satisfy rubric items, and cutting functionality feels like losing points. The incentive structure rewards inclusion: more features, more demonstrations, more coverage. Even in project-heavy programs, the scope is given, not chosen.
+
+In professional practice, the opposite is often true. Most engineering value comes from what you choose not to build. A self-directed project forces this directly. There is no rubric to optimize for, no teaching assistant to ask for an extension. You must decide what matters, what does not, and then commit to the boundary. This is scope discipline, and it is difficult to practice when someone else defines the scope for you.
+
+\subsection{Invariant-Driven Design}
+
+Course projects tend to emphasize outputs: demonstrations, reports, and the happy path working on presentation day. Sprint projects reward a different approach, defining invariants early and designing around failure modes. When you have one week, you cannot afford to discover your core assumptions were wrong on day five. You are forced to state what must always be true and build outward from there.
+
+This extends naturally to the concept of design by non-goals: explicitly documenting what the system will never do and enforcing those boundaries in practice. Non-goal documentation is uncommon in coursework but standard in mature engineering organizations, where it prevents scope drift and communicates intent to future maintainers.
+
+\subsection{Taste and Restraint}
+
+You cannot brute-force a one-week project with complexity. You must choose conservative tools, reject clever abstractions, and bias toward debuggability over expressiveness. This is professional taste forming, the development of judgment about what belongs in a system and what does not. It is difficult to practice in a semester-long project where complexity can always be deferred to next week or absorbed by a teammate.
+
+% ============================================================================
+\section{Single-Sprint Projects as Deliberate Practice}
+% ============================================================================
+
+The format is simple: one to two weeks, a self-imposed scope, and a production-quality target. The project must be something you can define in a single sentence, small enough to be tractable but real enough to require genuine design decisions. The constraint is the point, and there is no grade safety net or partial credit to fall back on. Every decision reflects directly on you, and design trade-offs are permanent.
+
+In academic settings, a ``sprint'' usually means a burst of effort before a deadline. In professional practice, a sprint is a bounded commitment with explicit deliverables and explicit cuts. Single-sprint personal projects practice the latter. They force you to decide what ships and what does not before the work begins, then hold yourself to that boundary as the work reveals its actual complexity.
+
+This is also where time management and expectation management are learned organically. There is no project manager but yourself, responsible for estimating, prioritizing, cutting, and shipping. The feedback loop is immediate: if you scoped poorly, you either ship something incomplete or you learn to scope better next time. Both outcomes are instructive.
+
+% ============================================================================
+\section{A Concrete Example}
+% ============================================================================
+
+In a recent single-sprint project, I constrained myself to a ten-day timeline and a sharply defined problem: a URL redirection service with formally verified core logic. The first commit was on January 22, 2026; version 1.0.0 shipped on February 1. The timeline forced decisions that a longer project would have deferred. Non-goals were documented before goals: no analytics, no user accounts, no custom aliases, no web interface, no click tracking. These were not features cut for time. They were excluded by design and enforced in the contribution policy.
+
+The central design invariant, that all stored URLs are canonicalized and satisfy four security properties, was established on day one and guided every subsequent architectural decision. The validated core was written in SPARK Ada with formal proof obligations. The service layer was composed in Haskell using conservative dependencies: SQLite for storage, Warp for HTTP. A phased internal roadmap, from v0.1.0 through v0.5.0 to v1.0.0, provided structure within the sprint and made scope visible at each stage.
+
+The result was a small but production-ready system with 137 verified proof obligations rather than an expanding prototype. The project succeeded not because the timeline was generous, but because the scope was honest. Every feature that shipped was intentional, and every feature that was excluded was documented.
+
+% ============================================================================
+\section{Lessons and Advice}
+% ============================================================================
+
+For students and early-career engineers looking to build this practice, the approach is straightforward. Pick a problem you can define in one sentence. Write your non-goals before your goals. Set a hard deadline and do not move it. Ship something real, even if small. Treat the constraint as the feature, not the limitation.
+
+The temptation will be to expand scope once the work feels productive. Resist it. The discipline of stopping, of declaring a system complete while there are still obvious things you could add, is the skill being practiced. A finished project with clear boundaries teaches more than an ambitious prototype that never ships.
+
+The broader point is that the habit of scoping, cutting, and shipping builds a skill set that coursework alone does not develop. Neither mode of learning is sufficient on its own. Together, they approximate the reality of professional engineering, where the ability to decide what to build matters as much as the ability to build it.
+
+% ============================================================================
+\section{Conclusion}
+% ============================================================================
+
+Coursework and single-sprint projects are complementary forms of engineering practice. Programs that already integrate frequent short projects into the syllabus have a measurable advantage: their students arrive at the workforce having practiced the cycle of scoping, building, and shipping multiple times. Sprint projects extend this further by removing the external scaffolding entirely, training judgment, ownership, and restraint in their purest form. For students in traditional, exam-heavy programs, self-directed sprint projects fill a critical gap that no amount of problem sets can address.
+
+These are the skills that distinguish an engineer who can build from one who can decide what to build. They are best developed through repetition, through the habit of picking a small problem, defining its boundaries honestly, and finishing it well. The earlier that habit forms, whether through program structure or personal initiative, the stronger the engineer it produces.
+
+\end{document}

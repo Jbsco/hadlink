@@ -29,6 +29,11 @@ Before contributing, understand the project values:
 3. **Infrastructure, not features**
 4. **Explicit non-goals matter**
 
+For background on the project's design philosophy, see the [whitepapers](whitepapers/):
+- [hadlink](whitepapers/hadlink.pdf) - System design and assurance model
+- [SPARK as a Design Lens](whitepapers/formal-verification-lens.pdf) - How formal verification shaped the architecture
+- [From Coursework to Craft](whitepapers/sprint-projects.pdf) - Project methodology and engineering practice
+
 ---
 
 ## What to Contribute

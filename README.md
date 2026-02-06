@@ -434,6 +434,12 @@ See [ROADMAP.md](docs/ROADMAP.md#do-278a-sil-3-mapping) for detailed objective m
 - **[Roadmap](docs/ROADMAP.md)** - Development phases and milestones
 - **[Contributing](docs/CONTRIBUTING.md)** - How to contribute
 
+### Whitepapers
+
+- **[hadlink: A Minimal, High-Assurance URL Redirection Service](docs/whitepapers/hadlink.pdf)** - Design philosophy, assurance model, and deployment approach
+- **[SPARK as a Design Lens: Beyond Verification in High-Assurance Systems](docs/whitepapers/formal-verification-lens.pdf)** - How writing SPARK contracts shaped architectural decisions as a design-time discipline
+- **[From Coursework to Craft: Single-Sprint Projects as Engineering Practice](docs/whitepapers/sprint-projects.pdf)** - How single-sprint personal projects build engineering skills that coursework alone does not emphasize
+
 ---
 
 ## License

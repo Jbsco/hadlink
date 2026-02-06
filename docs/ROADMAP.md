@@ -127,6 +127,7 @@ Follow the migration plan: Haskell-only → SPARK extraction → frozen API.
 - [x] Security considerations
 - [x] Example integrations
 - [x] Contributing guidelines
+- [x] Whitepapers ([hadlink](whitepapers/hadlink.pdf), [formal verification](whitepapers/formal-verification-lens.pdf), [sprint projects](whitepapers/sprint-projects.pdf))
 
 ### Lock SPARK Interface
 
